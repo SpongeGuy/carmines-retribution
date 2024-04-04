@@ -1,7 +1,6 @@
 -- mother fucker
 font_consolas = love.graphics.newFont("crafters-delight.ttf")
 local anim8 = require 'anim8'
-local rs = require 'resolution_solution'
 
 -- global variables
 window_width = 1920
