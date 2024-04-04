@@ -257,7 +257,7 @@ function love.update(dt)
 		
 	end
 	if circ_r > 0 then
-		circ_r = circ_r - 2.5
+		circ_r = circ_r - 2
 	end
 	
 end
