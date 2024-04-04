@@ -1,3 +1,9 @@
+-- todo
+-- - add background with parallax
+-- - add enemy with movement
+-- - make enemy shoot bullet
+
+
 -- mother fucker
 font_consolas = love.graphics.newFont("crafters-delight.ttf")
 local anim8 = require 'anim8'
@@ -9,11 +15,6 @@ local game_width, game_height = 960, 540
 local window_width, window_height = love.window.getDesktopDimensions()
 local window_scale = window_width/game_width
 push:setupScreen(game_width, game_height, window_width, window_height, {fullscreen = true})
-
--- window_width = 1920
--- window_height = 1080
--- window_scale = 1.5
-
 
 local carmine_body_sheet, carmine_body_animation
 local carmine_wings_left_sheet, carmine_wings_left_animation, carmine_wings_right_sheet, carmine_wings_right_animation
@@ -234,7 +235,6 @@ function love.update(dt)
 end
 
 function love.draw()
-	--love.graphics.rectangle("fill", 200, 250, 100, 100)
 	push:start()
 		-- carmine
 		carmine_wings_left_animation:draw(carmine_wings_right_sheet, carmine_obj.x, carmine_obj.y)
