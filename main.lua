@@ -1,11 +1,18 @@
 -- mother fucker
 font_consolas = love.graphics.newFont("crafters-delight.ttf")
 local anim8 = require 'anim8'
+local push = require 'push'
 
 -- global variables
-window_width = 1920
-window_height = 1080
-window_scale = 1.5
+love.graphics.setDefaultFilter("nearest", "nearest")
+local game_width, game_height = 960, 540
+local window_width, window_height = love.window.getDesktopDimensions()
+local window_scale = window_width/game_width
+push:setupScreen(game_width, game_height, window_width, window_height, {fullscreen = true})
+
+-- window_width = 1920
+-- window_height = 1080
+-- window_scale = 1.5
 
 
 local carmine_body_sheet, carmine_body_animation
@@ -162,8 +169,8 @@ end
 -- engage loving
 
 function love.load()
-	love.window.setMode(window_width, window_height, {fullscreen = true})
-	love.graphics.setDefaultFilter("nearest", "nearest")
+	--love.window.setMode(window_width, window_height, {fullscreen = true})
+	
 	scared_man_png = load_image('sprites/scared_man.png')
 
 	local g
@@ -206,7 +213,7 @@ function love.update(dt)
 	-- water drop
 	if love.keyboard.isDown('space') and not key_space_pressed then
 		key_space_pressed = true
-		water_drop_obj = MoveableObject.new(carmine_obj.x + 49, carmine_obj.y + 37, 550, 0, 20, 21)
+		water_drop_obj = MoveableObject.new(math.floor(carmine_obj.x + 49), math.floor(carmine_obj.y + 37), 550, 0, 20, 21)
 		water_drop_obj.sheet = load_image('sprites/water_drop/water_drop_sheet.png')
 		water_drop_obj:initialize_animation(20, 21, '1-4', 0.05)
 		water_drop_obj.id = "water_drop"
@@ -228,8 +235,7 @@ end
 
 function love.draw()
 	--love.graphics.rectangle("fill", 200, 250, 100, 100)
-	love.graphics.push()
-	love.graphics.scale(window_scale, window_scale)
+	push:start()
 		-- carmine
 		carmine_wings_left_animation:draw(carmine_wings_right_sheet, carmine_obj.x, carmine_obj.y)
 		carmine_body_animation:draw(carmine_body_sheet, (carmine_obj.x + 44), (carmine_obj.y + 32))
@@ -238,7 +244,7 @@ function love.draw()
 		for _, bullet in pairs(bullets) do
 			bullet.animation:draw(bullet.sheet, bullet.x, bullet.y)
 		end
-	love.graphics.pop()
+	push:finish()
 end
 
 function love.keyreleased(key)
