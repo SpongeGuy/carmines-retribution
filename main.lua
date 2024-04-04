@@ -14,7 +14,7 @@ love.graphics.setDefaultFilter("nearest", "nearest")
 local game_width, game_height = 960, 540
 local window_width, window_height = love.window.getDesktopDimensions()
 local window_scale = window_width/game_width
-push:setupScreen(game_width, game_height, window_width, window_height, {fullscreen = true})
+push:setupScreen(game_width, game_height, window_width, window_height, {windowed = true})
 
 local carmine_body_sheet, carmine_body_animation
 local carmine_wings_left_sheet, carmine_wings_left_animation, carmine_wings_right_sheet, carmine_wings_right_animation
@@ -88,6 +88,11 @@ function MoveableObject:control(speed, left, right, up, down)
 		self.dy = speed
 	end
 end
+
+local BulletObject = {}
+BulletObject.__index = BulletObject
+
+setmetatable(BulletObject, {__index = MoveableObject})
 
 -- removes all nil values from a table, moving subsequent values up
 function update_collection(collection, dt)
@@ -211,7 +216,7 @@ function love.load()
 
 	-- stars
 	for i = 1, 150 do
-		star = MoveableObject.new(math.random(1, game_width), math.random(1, game_height), -math.random(50, 350), 0)
+		star = BulletObject.new(math.random(1, game_width), math.random(1, game_height), -math.random(50, 350), 0)
 		star.sheet = load_image("sprites/stars/star1_sheet.png")
 		star:initialize_animation(4, 7, '1-4', 0.1)
 		star.looping = true
@@ -257,8 +262,9 @@ function love.update(dt)
 		
 	end
 	if circ_r > 0 then
-		circ_r = circ_r - 3
+		circ_r = circ_r - 180 * dt
 	end
+	if circ_r < 0 then circ_r = 0 end
 	
 end
 
