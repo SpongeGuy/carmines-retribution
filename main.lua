@@ -241,7 +241,7 @@ function love.update(dt)
 	end
 
 	circ_x = carmine_obj.x + 80
-	circ_y = carmine_obj.y + 40
+	circ_y = carmine_obj.y + 45
 
 	-- water drop
 	if love.keyboard.isDown('space') and not key_space_pressed then
@@ -257,7 +257,7 @@ function love.update(dt)
 		
 	end
 	if circ_r > 0 then
-		circ_r = circ_r - 2.5
+		circ_r = circ_r - 3
 	end
 	
 end
