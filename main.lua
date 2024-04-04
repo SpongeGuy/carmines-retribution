@@ -20,6 +20,7 @@ local carmine_body_sheet, carmine_body_animation
 local carmine_wings_left_sheet, carmine_wings_left_animation, carmine_wings_right_sheet, carmine_wings_right_animation
 local water_drop_sheet, water_drop_animation
 local bullets = {}
+local background = {}
 
 
 -- helpful functions
@@ -37,6 +38,7 @@ function MoveableObject.new(x, y, dx, dy, w, h, sheet, animation) --here
 	self.sheet = sheet or nil
 	self.animation = animation or nil
 	self.id = ""
+	self.looping = false
 	return self
 end
 
@@ -48,6 +50,15 @@ function MoveableObject:update(dt)
 	-- ensure object does not micromove
 	if self.dx < 0.001 and self.dx > -0.001 then
 		self.dx = 0
+	end
+
+	-- handle screen looping if applicable
+	if self.looping then
+		if self.dx < 0 and self.x < -50 then
+			self.x = game_width + 50
+		elseif self.dx > 0 and self.x > game_width + 50 then
+			self.x = -50
+		end
 	end
 
 	-- animation zone
@@ -84,7 +95,7 @@ function update_collection(collection, dt)
 	-- mark objects for removal
  	for i = 1, #collection do
 		local obj = collection[i]
-		deletion_condition = (obj.x > (window_width * window_scale) + 100 or obj.x < -100) or (obj.y > (window_height * window_scale) + 100 or obj.y < -100)
+		deletion_condition = (obj.x > (window_width * window_scale) + 200 or obj.x < -200) or (obj.y > (window_height * window_scale) + 200 or obj.y < -200)
 		if deletion_condition then
 			collection[i] = nil
 		end
@@ -114,8 +125,14 @@ function update_collection(collection, dt)
 
 	str = str.."}"
 	str = #collection
-	print(str)
 end
+
+function draw_collection(collection)
+	for _, obj in pairs(collection) do
+		obj.animation:draw(obj.sheet, obj.x, obj.y)
+	end
+end
+
 
 -- returns a number. if input is lower than low or higher than high, it returns corresponding value. 
 -- else, it returns the value
@@ -192,12 +209,24 @@ function love.load()
 	carmine_obj = MoveableObject.new(100, 200, 0, 0)
 	carmine_obj.id = "carmine"
 
-	-- 
+	-- stars
+	for i = 1, 150 do
+		star = MoveableObject.new(math.random(1, game_width), math.random(1, game_height), -math.random(50, 350), 0)
+		star.sheet = load_image("sprites/stars/star1_sheet.png")
+		star:initialize_animation(4, 7, '1-4', 0.1)
+		star.looping = true
+		table.insert(background, star)
+	end
 end
+
+local circ_r = 0
+local circ_x = 0
+local circ_y = 0
 
 function love.update(dt)
 	-- bullets
 	update_collection(bullets, dt)
+	update_collection(background, dt)
 	-- carmine
 	carmine_wings_left_animation:update(dt)
 	carmine_wings_right_animation:update(dt)
@@ -211,39 +240,43 @@ function love.update(dt)
 		carmine_body_animation:gotoFrame(2)
 	end
 
+	circ_x = carmine_obj.x + 80
+	circ_y = carmine_obj.y + 40
+
 	-- water drop
 	if love.keyboard.isDown('space') and not key_space_pressed then
+		local source = love.audio.newSource("sounds/ball_shot.wav", 'static')
+		source:play()
 		key_space_pressed = true
-		water_drop_obj = MoveableObject.new(math.floor(carmine_obj.x + 49), math.floor(carmine_obj.y + 37), 550, 0, 20, 21)
-		water_drop_obj.sheet = load_image('sprites/water_drop/water_drop_sheet.png')
-		water_drop_obj:initialize_animation(20, 21, '1-4', 0.05)
-		water_drop_obj.id = "water_drop"
-		water_drop_obj1 = MoveableObject.new(carmine_obj.x + 49, carmine_obj.y + 37, 500, 60, 20, 21)
-		water_drop_obj1.sheet = load_image('sprites/water_drop/water_drop_sheet.png')
-		water_drop_obj1:initialize_animation(20, 21, '1-4', 0.05)
-		water_drop_obj1.id = "water_drop"
-		water_drop_obj2 = MoveableObject.new(carmine_obj.x + 49, carmine_obj.y + 37, 500, -60, 20, 21)
-		water_drop_obj2.sheet = load_image('sprites/water_drop/water_drop_sheet.png')
-		water_drop_obj2:initialize_animation(20, 21, '1-4', 0.05)
-		water_drop_obj2.id = "water_drop"
-		table.insert(bullets, water_drop_obj)
-		table.insert(bullets, water_drop_obj1)
-		table.insert(bullets, water_drop_obj2)
+		local water = MoveableObject.new(math.floor(carmine_obj.x + 49), math.floor(carmine_obj.y + 37), 550, 0, 20, 21)
+		water.sheet = load_image('sprites/water_drop/water_drop_sheet.png')
+		water:initialize_animation(20, 21, '1-4', 0.05)
+		water.id = "water_drop"
+		table.insert(bullets, water)
+		circ_r = 30
+		
 	end
-	
+	if circ_r > 0 then
+		circ_r = circ_r - 2.5
+	end
 	
 end
 
 function love.draw()
 	push:start()
+		-- background
+		draw_collection(background)
+
 		-- carmine
 		carmine_wings_left_animation:draw(carmine_wings_right_sheet, carmine_obj.x, carmine_obj.y)
 		carmine_body_animation:draw(carmine_body_sheet, (carmine_obj.x + 44), (carmine_obj.y + 32))
 		carmine_wings_right_animation:draw(carmine_wings_left_sheet, carmine_obj.x, carmine_obj.y)
 
-		for _, bullet in pairs(bullets) do
-			bullet.animation:draw(bullet.sheet, bullet.x, bullet.y)
-		end
+		-- bullets
+		draw_collection(bullets)
+		
+		love.graphics.setColor(1, 1, 1)
+		love.graphics.circle('fill', circ_x, circ_y, circ_r)
 	push:finish()
 end
 
