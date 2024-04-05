@@ -25,7 +25,7 @@ local color_brown = {102, 57, 49}
 local color_yellow = {251, 242, 54}
 
 local fire_colors = {color_brightred, color_orange, color_yellow, color_orange}
-local grey_colors = {color_white, color_lightgrey, color_grey, color_lightgrey}
+local grey_colors = {color_white, color_white, color_white, color_lightgrey, color_grey, color_lightgrey}
 
 -- helpful functions
 local MoveableObject = {}
@@ -218,7 +218,16 @@ function load_image(path)
 	print("Couldn't grab image from " .. path)
 end
 
-
+function blink(colors)
+	if not colors then
+		return love.math.colorFromBytes(color_white[1], color_white[2], color_white[3])
+	end
+	if blinkt > #colors + 1 then
+		blinkt = 1
+	end
+	local i = math.floor(blinkt)
+	return love.math.colorFromBytes(colors[i][1], colors[i][2], colors[i][3])
+end
 
 
 
@@ -232,17 +241,6 @@ end
 function love.load()
 	mode = 'start'
 	blinkt = 1
-end
-
-function blink(colors)
-	if not colors then
-		return love.math.colorFromBytes(color_white[1], color_white[2], color_white[3])
-	end
-	if blinkt > #colors + 1 then
-		blinkt = 1
-	end
-	local i = math.floor(blinkt)
-	return love.math.colorFromBytes(colors[i][1], colors[i][2], colors[i][3])
 end
 
 function reset_game()
@@ -297,6 +295,8 @@ end
 -- game functions
 
 function update_game(dt)
+	-- update gramer logic
+
 	if love.keyboard.isDown('r') then
 		reset_game()
 	end
@@ -354,6 +354,7 @@ function update_game(dt)
 end
 
 function update_start(dt)
+	-- update function for start screen
 	if love.keyboard.isDown('space') and not key_space_pressed then
 		mode = 'game'
 		key_space_pressed = true
@@ -362,6 +363,7 @@ function update_start(dt)
 end
 
 function update_gameover(dt)
+	-- update function for gameover screen
 	if love.keyboard.isDown('space') and not key_space_pressed then
 		mode = 'start'
 		key_space_pressed = true
@@ -369,14 +371,13 @@ function update_gameover(dt)
 end
 
 function love.update(dt)
-	
 	if mode == 'game' then
 		update_game(dt)
 	elseif mode == 'start' then
-		blinkt = blinkt + (1 * dt) * 15
+		blinkt = blinkt + (1 * dt) * 10
 		update_start(dt)
 	elseif mode == 'gameover' then
-		blinkt = blinkt + (1 * dt) * 10
+		blinkt = blinkt + (1 * dt) * 15
 		update_gameover(dt)
 	end
 end
