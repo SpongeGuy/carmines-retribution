@@ -216,10 +216,8 @@ end
 
 -- load functions
 
-function love.load()
+function start_game()
 	-- init variables
-	mode = 'start'
-
 	bullets = {}
 	background = {}
 	enemies = {}
@@ -264,15 +262,19 @@ function love.load()
 	table.insert(enemies, rock)
 end
 
-function start_game()
-
+function love.load()
+	mode = 'start'
 end
-
 
 
 -- game functions
 
 function update_game(dt)
+	if love.keyboard.isDown('r') then
+		start_game()
+	end
+
+
 	-- collections
 	update_collection(bullets, dt)
 	update_collection(background, dt)
@@ -325,6 +327,7 @@ function update_start(dt)
 	if love.keyboard.isDown('space') then
 		mode = 'game'
 		key_space_pressed = true
+		start_game()
 	end
 end
 
