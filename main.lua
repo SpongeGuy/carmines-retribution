@@ -222,10 +222,10 @@ function blink(colors)
 	if not colors then
 		return love.math.colorFromBytes(color_white[1], color_white[2], color_white[3])
 	end
-	if blinkt > #colors + 1 then
-		blinkt = 1
+	if timer_blink > #colors + 1 then
+		timer_blink = 1
 	end
-	local i = math.floor(blinkt)
+	local i = math.floor(timer_blink)
 	return love.math.colorFromBytes(colors[i][1], colors[i][2], colors[i][3])
 end
 
@@ -240,7 +240,9 @@ end
 
 function love.load()
 	mode = 'start'
-	blinkt = 1
+	timer_blink = 1
+	timer_game = 1
+	timer_storage = nil
 end
 
 function reset_game()
@@ -275,8 +277,8 @@ function reset_game()
 	carmine_wings_right_animation = anim8.newAnimation(g('1-4', 1), 0.1)
 
 	-- stars
-	for i = 1, 150 do
-		star = MoveableObject.new(math.random(1, game_width), math.random(1, game_height), -math.random(50, 350), 0)
+	for i = 1, 300 do
+		star = MoveableObject.new(math.random(1, game_width), math.random(1, game_height), -math.random(1, 100), 0)
 		star.sheet = load_image("sprites/stars/star1_sheet.png")
 		star.animation = initialize_animation(star.sheet, 4, 7, '1-4', 0.1)
 		star.looping = true
@@ -300,7 +302,9 @@ function update_game(dt)
 	if love.keyboard.isDown('r') then
 		reset_game()
 	end
-
+	if timer_game > 32000 then
+		timer_game = 1
+	end
 
 	-- collections
 	update_collection(bullets, dt)
@@ -353,12 +357,22 @@ function update_game(dt)
 	end
 end
 
+function update_levelscreen(dt)
+	reset_game()
+	if not timer_storage then
+		timer_storage = timer_game
+	end
+	if timer_game - timer_storage > 2 then
+		mode = 'game'
+		timer_storage = nil
+	end
+end
+
 function update_start(dt)
 	-- update function for start screen
 	if love.keyboard.isDown('space') and not key_space_pressed then
-		mode = 'game'
+		mode = 'levelscreen'
 		key_space_pressed = true
-		reset_game()
 	end
 end
 
@@ -371,14 +385,18 @@ function update_gameover(dt)
 end
 
 function love.update(dt)
+	timer_game = timer_game + (1 * dt)
 	if mode == 'game' then
 		update_game(dt)
 	elseif mode == 'start' then
-		blinkt = blinkt + (1 * dt) * 10
+		timer_blink = timer_blink + (1 * dt) * 10
 		update_start(dt)
 	elseif mode == 'gameover' then
-		blinkt = blinkt + (1 * dt) * 15
+		timer_blink = timer_blink + (1 * dt) * 15
 		update_gameover(dt)
+	elseif mode == 'levelscreen' then
+		timer_blink = timer_blink + (1 * dt) * 10
+		update_levelscreen(dt)
 	end
 end
 
@@ -409,6 +427,12 @@ function draw_game()
 	-- end
 end
 
+function draw_levelscreen()
+	love.graphics.setColor(blink(grey_colors))
+	love.graphics.print("LEVEL 1", (game_width / 2) - 35, (game_height / 2) - 60)
+	love.graphics.print("FUCKING SPACE", (game_width / 2) - 55, (game_height / 2) - 40)
+end
+
 function draw_start()
 	love.graphics.setColor(blink(grey_colors))
 	love.graphics.print("CARMINE'S RETRIBUTION", (game_width / 2) - 70, (game_height / 2) - 60)
@@ -423,13 +447,16 @@ end
 
 function love.draw()
 	push:start()
-		love.graphics.print(blinkt, 50, 0)
+		love.graphics.print(timer_blink, 50, 0)
+		love.graphics.print(timer_game, 50, 10)
 		if mode == 'game' then
 			draw_game()
 		elseif mode == 'start' then
 			draw_start()
 		elseif mode == 'gameover' then
 			draw_gameover()
+		elseif mode == 'levelscreen' then
+			draw_levelscreen()
 		end
 	push:finish()
 end
