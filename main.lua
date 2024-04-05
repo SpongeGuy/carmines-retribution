@@ -74,9 +74,8 @@ function MoveableObject:update(dt)
 	end
 end
 
-function initialize_animation(sheet, frame_width, frame_height, frames, duration)
-	local a = anim8.newGrid(frame_width, frame_height, sheet:getWidth(), sheet:getHeight())
-	return anim8.newAnimation(a(frames, 1), duration)
+function MoveableObject:draw_hitbox()
+	love.graphics.rectangle('line', self.hitx, self.hity, self.hitw, self.hith)
 end
 
 function MoveableObject:control(speed, left, right, up, down)
@@ -123,6 +122,11 @@ end
 -- 	self.friendly = false
 -- 	return self
 -- end
+
+function initialize_animation(sheet, frame_width, frame_height, frames, duration)
+	local a = anim8.newGrid(frame_width, frame_height, sheet:getWidth(), sheet:getHeight())
+	return anim8.newAnimation(a(frames, 1), duration)
+end
 
 -- removes all nil values from a table, moving subsequent values up
 function update_collection(collection, dt)
@@ -227,7 +231,7 @@ function love.load()
 	local g
 
 	-- carmine
-	carmine = MoveableObject.new(100, 200, 0, 0, 100, 200, 35, 23)
+	carmine = MoveableObject.new(100, 200, 0, 0, 114, 208, 14, 7)
 	carmine.id = "carmine"
 
 	carmine_body_sheet = load_image('sprites/carmine/carmine_body_sheet.png')
@@ -312,14 +316,10 @@ function love.draw()
 		-- background
 		draw_collection(background)
 
-		
-
 		-- bullets
 		draw_collection(bullets)
 		draw_collection(enemies)
 
-
-		
 		-- carmine
 		carmine_wings_left_animation:draw(carmine_wings_right_sheet, carmine.x - 45, carmine.y - 35)
 		carmine_body_animation:draw(carmine_body_sheet, carmine.x, carmine.y)
@@ -333,6 +333,7 @@ function love.draw()
 		love.graphics.print(rock.hity, 0, 60)
 		local data = get_collision(carmine, rock)
 		love.graphics.print(tostring(data), 0, 80)
+		carmine:draw_hitbox()
 	push:finish()
 
 	
