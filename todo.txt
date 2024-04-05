@@ -1,9 +1,15 @@
 todo
-add background with parallax
-make bullet object
-	friendly bullet?
-add enemy with movement
-	make enemy shoot bullet
-	if carmine collide with enemy
-		enemy destroy
-		carmine lose life
+	add background with parallax
+	make bullet object
+		friendly bullet?
+	add enemy with movement
+		make enemy shoot bullet
+		if carmine collide with enemy
+			enemy destroy
+			carmine lose life
+
+
+technical todo
+	make timer function, which can store and retrieve specific timers
+		table of timers?
+		store value key as a string?

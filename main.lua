@@ -204,9 +204,8 @@ function load_image(path)
 	print("Couldn't grab image from " .. path)
 end
 
-function debug()
-	tester = "x:" .. friend.x .. "\t" .. "y:" .. friend.y .. "\t" .. "dx:" .. friend.dx .. "\t" .. "dy:" .. friend.dy
-	text = love.graphics.newText(font_consolas, tester)
+function blink()
+
 end
 
 
@@ -215,6 +214,10 @@ end
 
 
 -- load functions
+
+function love.load()
+	mode = 'start'
+end
 
 function reset_game()
 	-- init variables
@@ -262,9 +265,7 @@ function reset_game()
 	table.insert(enemies, rock)
 end
 
-function love.load()
-	mode = 'gameover'
-end
+
 
 
 -- game functions
