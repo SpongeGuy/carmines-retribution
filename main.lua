@@ -1,8 +1,8 @@
 
 
 
--- mother fucker
-font_consolas = love.graphics.setNewFont("crafters-delight.ttf", 8)
+-- variables that will literally never change here
+local font_consolas = love.graphics.setNewFont("crafters-delight.ttf", 8)
 local anim8 = require 'anim8'
 local push = require 'push'
 
@@ -12,6 +12,20 @@ local game_width, game_height = 960, 540
 local window_width, window_height = love.window.getDesktopDimensions()
 local window_scale = window_width/game_width
 push:setupScreen(game_width, game_height, window_width, window_height, {windowed = true})
+
+local color_darkred = {172, 50, 50}
+local color_brightred = {219, 24, 24}
+local color_orange = {223, 113, 38}
+local color_white = {255, 255, 255}
+local color_green = {153, 229, 80}
+local color_grey = {105, 106, 106}
+local color_lightgrey = {155, 173, 183}
+local color_black = {0, 0, 0}
+local color_brown = {102, 57, 49}
+local color_yellow = {251, 242, 54}
+
+local fire_colors = {color_brightred, color_orange, color_yellow, color_orange}
+local grey_colors = {color_white, color_lightgrey, color_grey, color_lightgrey}
 
 -- helpful functions
 local MoveableObject = {}
@@ -204,9 +218,9 @@ function load_image(path)
 	print("Couldn't grab image from " .. path)
 end
 
-function blink()
 
-end
+
+
 
 
 
@@ -217,6 +231,18 @@ end
 
 function love.load()
 	mode = 'start'
+	blinkt = 1
+end
+
+function blink(colors)
+	if not colors then
+		return love.math.colorFromBytes(color_white[1], color_white[2], color_white[3])
+	end
+	if blinkt > #colors + 1 then
+		blinkt = 1
+	end
+	local i = math.floor(blinkt)
+	return love.math.colorFromBytes(colors[i][1], colors[i][2], colors[i][3])
 end
 
 function reset_game()
@@ -343,11 +369,14 @@ function update_gameover(dt)
 end
 
 function love.update(dt)
+	
 	if mode == 'game' then
 		update_game(dt)
 	elseif mode == 'start' then
+		blinkt = blinkt + (1 * dt) * 15
 		update_start(dt)
 	elseif mode == 'gameover' then
+		blinkt = blinkt + (1 * dt) * 10
 		update_gameover(dt)
 	end
 end
@@ -380,19 +409,20 @@ function draw_game()
 end
 
 function draw_start()
-	love.graphics.setColor(1, 1, 1)
+	love.graphics.setColor(blink(grey_colors))
 	love.graphics.print("CARMINE'S RETRIBUTION", (game_width / 2) - 70, (game_height / 2) - 60)
 	love.graphics.print("PRESS ANY KEY TO START", (game_width / 2) - 72, (game_height / 2 ) - 40)
 end
 
 function draw_gameover()
-	love.graphics.setColor(1, 0.2, 0.5)
+	love.graphics.setColor(blink(fire_colors))
 	love.graphics.print("YOU SUCK", (game_width / 2) - 35, (game_height / 2) - 60)
 	love.graphics.print("NOT WORTHY OF CARMINE", (game_width / 2) - 70, (game_height / 2) - 40)
 end
 
 function love.draw()
 	push:start()
+		love.graphics.print(blinkt, 50, 0)
 		if mode == 'game' then
 			draw_game()
 		elseif mode == 'start' then
