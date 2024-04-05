@@ -216,7 +216,7 @@ end
 
 -- load functions
 
-function start_game()
+function reset_game()
 	-- init variables
 	bullets = {}
 	background = {}
@@ -232,7 +232,7 @@ function start_game()
 	-- carmine
 	carmine = MoveableObject.new(100, 200, 0, 0, 114, 208, 14, 7)
 	carmine.id = "carmine"
-	carmine.lives = 3
+	carmine.lives = 1
 
 	local g
 	carmine_body_sheet = load_image('sprites/carmine/carmine_body_sheet.png')
@@ -263,7 +263,7 @@ function start_game()
 end
 
 function love.load()
-	mode = 'start'
+	mode = 'gameover'
 end
 
 
@@ -271,7 +271,7 @@ end
 
 function update_game(dt)
 	if love.keyboard.isDown('r') then
-		start_game()
+		reset_game()
 	end
 
 
@@ -290,6 +290,9 @@ function update_game(dt)
 	update_collection(enemies, dt)
 	
 	-- carmine
+	if carmine.lives == 0 then
+		mode = 'gameover'
+	end
 	carmine_wings_left_animation:update(dt)
 	carmine_wings_right_animation:update(dt)
 	carmine:control(250, "a", "d", "w", "s")
@@ -324,10 +327,17 @@ function update_game(dt)
 end
 
 function update_start(dt)
-	if love.keyboard.isDown('space') then
+	if love.keyboard.isDown('space') and not key_space_pressed then
 		mode = 'game'
 		key_space_pressed = true
-		start_game()
+		reset_game()
+	end
+end
+
+function update_gameover(dt)
+	if love.keyboard.isDown('space') and not key_space_pressed then
+		mode = 'start'
+		key_space_pressed = true
 	end
 end
 
@@ -336,6 +346,8 @@ function love.update(dt)
 		update_game(dt)
 	elseif mode == 'start' then
 		update_start(dt)
+	elseif mode == 'gameover' then
+		update_gameover(dt)
 	end
 end
 
@@ -367,8 +379,15 @@ function draw_game()
 end
 
 function draw_start()
+	love.graphics.setColor(1, 1, 1)
 	love.graphics.print("CARMINE'S RETRIBUTION", (game_width / 2) - 70, (game_height / 2) - 60)
 	love.graphics.print("PRESS ANY KEY TO START", (game_width / 2) - 72, (game_height / 2 ) - 40)
+end
+
+function draw_gameover()
+	love.graphics.setColor(1, 0.2, 0.5)
+	love.graphics.print("YOU SUCK", (game_width / 2) - 35, (game_height / 2) - 60)
+	love.graphics.print("NOT WORTHY OF CARMINE", (game_width / 2) - 70, (game_height / 2) - 40)
 end
 
 function love.draw()
@@ -377,6 +396,8 @@ function love.draw()
 			draw_game()
 		elseif mode == 'start' then
 			draw_start()
+		elseif mode == 'gameover' then
+			draw_gameover()
 		end
 	push:finish()
 end
