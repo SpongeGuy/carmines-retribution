@@ -13,14 +13,6 @@ local window_width, window_height = love.window.getDesktopDimensions()
 local window_scale = window_width/game_width
 push:setupScreen(game_width, game_height, window_width, window_height, {windowed = true})
 
-local carmine_body_sheet, carmine_body_animation
-local carmine_wings_left_sheet, carmine_wings_left_animation, carmine_wings_right_sheet, carmine_wings_right_animation
-local water_drop_sheet, water_drop_animation
-local bullets = {}
-local background = {}
-local enemies = {}
-
-
 -- helpful functions
 local MoveableObject = {}
 MoveableObject.__index = MoveableObject
@@ -218,19 +210,33 @@ function debug()
 end
 
 
--- engage loving
+
+
+
+
+-- load functions
 
 function love.load()
-	--love.window.setMode(window_width, window_height, {fullscreen = true})
+	-- init variables
+	mode = 'start'
+
+	bullets = {}
+	background = {}
+	enemies = {}
+
+	sound_shot = love.audio.newSource("sounds/ball_shot.wav", 'static')
+	sound_slash = love.audio.newSource("sounds/slash.wav", 'static')
+	circ_r = 0
+	circ_x = 0
+	circ_y = 0
+
 	
-	scared_man_png = load_image('sprites/scared_man.png')
-
-	local g
-
 	-- carmine
 	carmine = MoveableObject.new(100, 200, 0, 0, 114, 208, 14, 7)
 	carmine.id = "carmine"
+	carmine.lives = 3
 
+	local g
 	carmine_body_sheet = load_image('sprites/carmine/carmine_body_sheet.png')
 	g = anim8.newGrid(35, 23, carmine_body_sheet:getWidth(), carmine_body_sheet:getHeight())
 	carmine_body_animation = anim8.newAnimation(g('1-3', 1), 0.1)
@@ -256,25 +262,27 @@ function love.load()
 	rock.animation = initialize_animation(rock.sheet, 55, 36, '1-2', 0.1)
 	rock.id = "evil_rock"
 	table.insert(enemies, rock)
+end
+
+function start_game()
 
 end
 
-local circ_r = 0
-local circ_x = 0
-local circ_y = 0
 
 
-local sound_shot = love.audio.newSource("sounds/ball_shot.wav", 'static')
-local sound_slash = love.audio.newSource("sounds/slash.wav", 'static')
+-- game functions
 
-function love.update(dt)
+function update_game(dt)
 	-- collections
 	update_collection(bullets, dt)
 	update_collection(background, dt)
+
+	-- special behavior on collision with carmine
 	for i = 1, #enemies do
 		if get_collision(carmine, enemies[i]) then
 			sound_slash:play()
 			enemies[i] = nil
+			carmine.lives = carmine.lives - 1
 		end
 	end
 	update_collection(enemies, dt)
@@ -292,10 +300,13 @@ function love.update(dt)
 		carmine_body_animation:gotoFrame(2)
 	end
 
+	-- shot burst data
 	circ_x = carmine.x + 30
 	circ_y = carmine.y + 10
-
-	
+	if circ_r > 0 then
+		circ_r = circ_r - 180 * dt
+	end
+	if circ_r < 0 then circ_r = 0 end
 
 	-- water drop
 	if love.keyboard.isDown('space') and not key_space_pressed then
@@ -307,41 +318,64 @@ function love.update(dt)
 		water.id = "water_drop"
 		table.insert(bullets, water)
 		circ_r = 25
-		
 	end
-	if circ_r > 0 then
-		circ_r = circ_r - 180 * dt
+end
+
+function update_start(dt)
+	if love.keyboard.isDown('space') then
+		mode = 'game'
+		key_space_pressed = true
 	end
-	if circ_r < 0 then circ_r = 0 end
-	
+end
+
+function love.update(dt)
+	if mode == 'game' then
+		update_game(dt)
+	elseif mode == 'start' then
+		update_start(dt)
+	end
+end
+
+
+
+
+-- draw functions
+
+function draw_game()
+	-- background
+	draw_collection(background)
+
+	-- bullets
+	draw_collection(bullets)
+	draw_collection(enemies)
+
+	-- carmine
+	carmine_wings_left_animation:draw(carmine_wings_right_sheet, carmine.x - 45, carmine.y - 35)
+	carmine_body_animation:draw(carmine_body_sheet, carmine.x, carmine.y)
+	carmine_wings_right_animation:draw(carmine_wings_left_sheet, carmine.x - 45, carmine.y - 35)
+	love.graphics.setColor(1, 1, 1)
+	love.graphics.circle('fill', circ_x, circ_y, circ_r)
+
+	love.graphics.print(carmine.lives, 0, 0)
+	-- carmine:draw_hitbox()
+	-- for _, enemy in pairs(enemies) do
+	-- 	enemy:draw_hitbox()
+	-- end
+end
+
+function draw_start()
+	love.graphics.print("CARMINE'S RETRIBUTION", (game_width / 2) - 70, (game_height / 2) - 60)
+	love.graphics.print("PRESS ANY KEY TO START", (game_width / 2) - 72, (game_height / 2 ) - 40)
 end
 
 function love.draw()
 	push:start()
-		-- background
-		draw_collection(background)
-
-		-- bullets
-		draw_collection(bullets)
-		draw_collection(enemies)
-
-		-- carmine
-		carmine_wings_left_animation:draw(carmine_wings_right_sheet, carmine.x - 45, carmine.y - 35)
-		carmine_body_animation:draw(carmine_body_sheet, carmine.x, carmine.y)
-		carmine_wings_right_animation:draw(carmine_wings_left_sheet, carmine.x - 45, carmine.y - 35)
-		love.graphics.setColor(1, 1, 1)
-		love.graphics.circle('fill', circ_x, circ_y, circ_r)
-
-		local data = get_collision(carmine, rock)
-		love.graphics.print(tostring(data), 0, 80)
-		-- carmine:draw_hitbox()
-		-- for _, enemy in pairs(enemies) do
-		-- 	enemy:draw_hitbox()
-		-- end
-		
+		if mode == 'game' then
+			draw_game()
+		elseif mode == 'start' then
+			draw_start()
+		end
 	push:finish()
-
-	
 end
 
 function love.keyreleased(key)
