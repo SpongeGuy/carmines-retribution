@@ -1,0 +1,6 @@
+todo
+add background with parallax
+make bullet object
+	friendly bullet?
+add enemy with movement
+	make enemy shoot bullet
