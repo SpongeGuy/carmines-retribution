@@ -4,3 +4,6 @@ make bullet object
 	friendly bullet?
 add enemy with movement
 	make enemy shoot bullet
+	if carmine collide with enemy
+		enemy destroy
+		carmine lose life

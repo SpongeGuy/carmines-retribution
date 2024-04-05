@@ -93,6 +93,10 @@ function MoveableObject:control(speed, left, right, up, down)
 	if love.keyboard.isDown(down) then
 		self.dy = speed
 	end
+	if not (self.dx == 0 and self.dy == 0) then
+		self.dx = self.dx * 0.707
+		self.dy = self.dy * 0.707
+	end
 end
 
 -- local BulletObject = {}
@@ -128,14 +132,16 @@ function initialize_animation(sheet, frame_width, frame_height, frames, duration
 	return anim8.newAnimation(a(frames, 1), duration)
 end
 
+-- sets a deletion condition
 -- removes all nil values from a table, moving subsequent values up
 function update_collection(collection, dt)
 	local str = "{"
 	-- mark objects for removal
  	for i = 1, #collection do
 		local obj = collection[i]
-		deletion_condition = (obj.x > (window_width * window_scale) + 200 or obj.x < -200) or (obj.y > (window_height * window_scale) + 200 or obj.y < -200)
-		if deletion_condition then
+		local obj_left_game_area = (obj.x > (window_width * window_scale) + 200 or obj.x < -200) or (obj.y > (window_height * window_scale) + 200 or obj.y < -200)
+		local obj_collided
+		if obj_left_game_area then
 			collection[i] = nil
 		end
 	end
@@ -183,14 +189,6 @@ function clamp(value, low, high)
 		value = high
 	end
 	return value
-end
-
--- get if colliding with the window edge
--- accounts for window scaling
-function get_window_collision(x1, y1, w, h)
-	local vertical = y < 0 or y + h > window_height / window_scale
-	local horizontal = x < 0 or x + w > window_width / window_scale
-	return vertical, horizontal
 end
 
 -- get if there is a collision between two objects
@@ -246,8 +244,6 @@ function love.load()
 	g = anim8.newGrid(100, 100, carmine_wings_right_sheet:getWidth(), carmine_wings_right_sheet:getHeight())
 	carmine_wings_right_animation = anim8.newAnimation(g('1-4', 1), 0.1)
 
-	
-
 	-- stars
 	for i = 1, 150 do
 		star = MoveableObject.new(math.random(1, game_width), math.random(1, game_height), -math.random(50, 350), 0)
@@ -257,7 +253,7 @@ function love.load()
 		table.insert(background, star)
 	end
 
-	rock = MoveableObject.new(300, 100, 0, 0, 300, 100, 55, 36, {sheet = load_image("sprites/rocks/rock1_sheet.png")})
+	rock = MoveableObject.new(game_width + 25, 100, -200, 0, game_width + 25, 100, 55, 36, {sheet = load_image("sprites/rocks/rock1_sheet.png")})
 	rock.animation = initialize_animation(rock.sheet, 55, 36, '1-2', 0.1)
 	rock.id = "evil_rock"
 	table.insert(enemies, rock)
@@ -327,13 +323,10 @@ function love.draw()
 		love.graphics.setColor(1, 1, 1)
 		love.graphics.circle('fill', circ_x, circ_y, circ_r)
 
-		love.graphics.print(carmine.hitx, 0, 0)
-		love.graphics.print(carmine.hity, 0, 20)
-		love.graphics.print(rock.hitx, 0, 40)
-		love.graphics.print(rock.hity, 0, 60)
 		local data = get_collision(carmine, rock)
 		love.graphics.print(tostring(data), 0, 80)
 		carmine:draw_hitbox()
+		rock:draw_hitbox()
 	push:finish()
 
 	
