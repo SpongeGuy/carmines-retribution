@@ -140,7 +140,6 @@ function update_collection(collection, dt)
  	for i = 1, #collection do
 		local obj = collection[i]
 		local obj_left_game_area = (obj.x > (window_width * window_scale) + 200 or obj.x < -200) or (obj.y > (window_height * window_scale) + 200 or obj.y < -200)
-		local obj_collided
 		if obj_left_game_area then
 			collection[i] = nil
 		end
@@ -264,11 +263,22 @@ local circ_r = 0
 local circ_x = 0
 local circ_y = 0
 
+
+local sound_shot = love.audio.newSource("sounds/ball_shot.wav", 'static')
+local sound_slash = love.audio.newSource("sounds/slash.wav", 'static')
+
 function love.update(dt)
 	-- collections
 	update_collection(bullets, dt)
 	update_collection(background, dt)
+	for i = 1, #enemies do
+		if get_collision(carmine, enemies[i]) then
+			sound_slash:play()
+			enemies[i] = nil
+		end
+	end
 	update_collection(enemies, dt)
+	
 	-- carmine
 	carmine_wings_left_animation:update(dt)
 	carmine_wings_right_animation:update(dt)
@@ -289,15 +299,14 @@ function love.update(dt)
 
 	-- water drop
 	if love.keyboard.isDown('space') and not key_space_pressed then
-		local source = love.audio.newSource("sounds/ball_shot.wav", 'static')
-		source:play()
+		sound_shot:play()
 		key_space_pressed = true
 		local water = MoveableObject.new(math.floor(carmine.x + 10), math.floor(carmine.y), 550, 0, 20, 21)
 		water.sheet = load_image('sprites/water_drop/water_drop_sheet.png')
 		water.animation = initialize_animation(water.sheet, 20, 21, '1-4', 0.05)
 		water.id = "water_drop"
 		table.insert(bullets, water)
-		circ_r = 30
+		circ_r = 25
 		
 	end
 	if circ_r > 0 then
@@ -325,8 +334,11 @@ function love.draw()
 
 		local data = get_collision(carmine, rock)
 		love.graphics.print(tostring(data), 0, 80)
-		carmine:draw_hitbox()
-		rock:draw_hitbox()
+		-- carmine:draw_hitbox()
+		-- for _, enemy in pairs(enemies) do
+		-- 	enemy:draw_hitbox()
+		-- end
+		
 	push:finish()
 
 	
