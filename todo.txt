@@ -1,3 +1,4 @@
+4/4/2024
 todo
 	add background with parallax
 	make bullet object
@@ -8,8 +9,16 @@ todo
 			enemy destroy
 			carmine lose life
 
-
 technical todo
 	make timer function, which can store and retrieve specific timers
 		table of timers?
 		store value key as a string?
+
+-- DONE --
+
+4/6/2024
+todo
+	make enemy flash when take dmg
+	make actual ui with health and score values
+
+
