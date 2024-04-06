@@ -244,6 +244,7 @@ end
 
 function love.load()
 	love.window.setTitle("CARMINE'S RETRIBUTION")
+	love.window.setIcon(love.image.newImageData("sprites/carmine/carmine_body.png"))
 	mode = 'start'
 	timer_blink = 1
 	timer_game = 1
