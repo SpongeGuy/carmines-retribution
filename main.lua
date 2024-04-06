@@ -105,6 +105,26 @@ function MoveableObject:control(speed, left, right, up, down)
 	end
 end
 
+-- define enemy types
+
+local Enemy_Rock = {}
+Enemy_Rock.__index = Enemy_Rock
+
+setmetatable(Enemy_Rock, {__index = MoveableObject})
+
+function Enemy_Rock.new(x, y, dx, dy)
+	local self = MoveableObject.new(x, y, dx, dy, hitx, hity, hitw, hith, flags)
+	self.hitx = x
+	self.hity = y
+	self.hitw = 55
+	self.hith = 36
+	self.sheet = load_image("sprites/rocks/rock1_sheet.png")
+	self.animation = initialize_animation(self.sheet, 55, 36, '1-2', 0.1)
+	self.friendly = false
+	self.id = "evil_rock"
+	return self
+end
+
 -- local BulletObject = {}
 -- BulletObject.__index = BulletObject
 
@@ -291,9 +311,7 @@ function reset_game()
 		table.insert(background, star)
 	end
 
-	rock = MoveableObject.new(game_width + 25, 100, -200, 0, game_width + 25, 100, 55, 36, {sheet = load_image("sprites/rocks/rock1_sheet.png")})
-	rock.animation = initialize_animation(rock.sheet, 55, 36, '1-2', 0.1)
-	rock.id = "evil_rock"
+	rock = Enemy_Rock.new(game_width + 50, 200, -200, 0)
 	table.insert(enemies, rock)
 end
 
