@@ -372,7 +372,7 @@ function update_game(dt)
 	end
 	for i = 1, #enemies do
 		for p = 1, #bullets do
-			if get_collision(enemies[i], bullets[p]) then
+			if get_collision(enemies[i], bullets[p]) and bullets[p].friendly then
 				local slash = love.audio.newSource("sounds/slash.wav", 'static')
 				slash:play()
 				enemies[i] = nil
@@ -381,6 +381,13 @@ function update_game(dt)
 			end
 		end
 	end
+	for i = 1, #bullets do
+		if not bullets[i].friendly and get_collision(carmine, bullets[i]) then
+			sound_slash:play()
+			carmine.lives = carmine.lives - 1
+		end
+	end
+
 end
 
 function update_levelscreen(dt)
