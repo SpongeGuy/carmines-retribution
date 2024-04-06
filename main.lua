@@ -140,14 +140,17 @@ end
 
 -- sets a deletion condition
 -- removes all nil values from a table, moving subsequent values up
+-- if you need to destroy an object, just set it to nil within its collection, garbage collection will take care of it
 function update_collection(collection, dt)
 	local str = "{"
 	-- mark objects for removal
  	for i = 1, #collection do
 		local obj = collection[i]
-		local obj_left_game_area = (obj.x > (window_width * window_scale) + 200 or obj.x < -200) or (obj.y > (window_height * window_scale) + 200 or obj.y < -200)
-		if obj_left_game_area then
-			collection[i] = nil
+		if obj then
+			local obj_left_game_area = (obj.x > (window_width * window_scale) + 200 or obj.x < -200) or (obj.y > (window_height * window_scale) + 200 or obj.y < -200)
+			if obj_left_game_area then
+				collection[i] = nil
+			end
 		end
 	end
 
@@ -175,6 +178,7 @@ function update_collection(collection, dt)
 
 	str = str.."}"
 	str = #collection
+	collectgarbage()
 end
 
 function draw_collection(collection)
@@ -307,20 +311,10 @@ function update_game(dt)
 		timer_game = 1
 	end
 
-	-- collections
-	update_collection(bullets, dt)
-	update_collection(background, dt)
+	
 
 	-- special behavior on collision with carmine
-	for i = 1, #enemies do
-		if get_collision(carmine, enemies[i]) then
-			sound_slash:play()
-			enemies[i] = nil
-			carmine.lives = carmine.lives - 1
-		end
-	end
-	update_collection(enemies, dt)
-	
+
 	-- carmine
 	if carmine.lives == 0 then
 		mode = 'gameover'
@@ -349,12 +343,42 @@ function update_game(dt)
 	if love.keyboard.isDown('space') and not key_space_pressed then
 		sound_shot:play()
 		key_space_pressed = true
-		local water = MoveableObject.new(math.floor(carmine.x + 10), math.floor(carmine.y), 550, 0, 20, 21)
+		local water = MoveableObject.new(math.floor(carmine.x + 10), math.floor(carmine.y), 550, 0, math.floor(carmine.x + 10), math.floor(carmine.y), 20, 21)
 		water.sheet = load_image('sprites/water_drop/water_drop_sheet.png')
 		water.animation = initialize_animation(water.sheet, 20, 21, '1-4', 0.05)
 		water.id = "water_drop"
+		water.friendly = true
 		table.insert(bullets, water)
 		circ_r = 25
+	end
+
+
+
+	
+
+	-- collections
+	
+	update_collection(bullets, dt)
+	update_collection(background, dt)
+	update_collection(enemies, dt)
+
+	for i = 1, #enemies do
+		if get_collision(carmine, enemies[i]) then
+			sound_slash:play()
+			enemies[i] = nil
+			carmine.lives = carmine.lives - 1
+		end
+	end
+	for i = 1, #enemies do
+		for p = 1, #bullets do
+			if get_collision(enemies[i], bullets[p]) then
+				local slash = love.audio.newSource("sounds/slash.wav", 'static')
+				slash:play()
+				enemies[i] = nil
+				bullets[p] = nil
+				return
+			end
+		end
 	end
 end
 
