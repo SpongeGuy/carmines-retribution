@@ -239,6 +239,7 @@ end
 -- load functions
 
 function love.load()
+	love.window.setTitle("CARMINE'S RETRIBUTION")
 	mode = 'start'
 	timer_blink = 1
 	timer_game = 1
@@ -278,7 +279,7 @@ function reset_game()
 
 	-- stars
 	for i = 1, 300 do
-		star = MoveableObject.new(math.random(1, game_width), math.random(1, game_height), -math.random(1, 100), 0)
+		star = MoveableObject.new(math.random(1, game_width), math.random(1, game_height), -math.random(1, 200), 0)
 		star.sheet = load_image("sprites/stars/star1_sheet.png")
 		star.animation = initialize_animation(star.sheet, 4, 7, '1-4', 0.1)
 		star.looping = true
