@@ -48,6 +48,7 @@ function MoveableObject.new(x, y, dx, dy, hitx, hity, hitw, hith, flags) --here
 	self.id = flags.id or ""
 	self.looping = flags.looping or false
 	self.friendly = flags.friendly or nil
+	self.health = flags.health or nil
 	return self
 end
 
@@ -122,6 +123,26 @@ function Enemy_Rock.new(x, y, dx, dy)
 	self.animation = initialize_animation(self.sheet, 55, 36, '1-2', 0.1)
 	self.friendly = false
 	self.id = "evil_rock"
+	self.health = 3
+	return self
+end
+
+local Projectile_Water = {}
+Projectile_Water.__index = Projectile_Water
+
+setmetatable(Projectile_Water, {__index = MoveableObject})
+
+function Projectile_Water.new(x, y, dx, dy, friendly)
+	local self = MoveableObject.new(x, y, dx, dy, hitx, hity, hitw, hith, flags)
+	self.hitx = x
+	self.hity = y
+	self.hitw = 20
+	self.hith = 21
+	self.sheet = load_image("sprites/water_drop/water_drop_sheet.png")
+	self.animation = initialize_animation(self.sheet, 20, 21, '1-4', 0.1)
+	self.friendly = friendly
+	self.id = "water_drop"
+	self.health = 1
 	return self
 end
 
@@ -170,6 +191,10 @@ function update_collection(collection, dt)
 			local obj_left_game_area = (obj.x > (window_width * window_scale) + 200 or obj.x < -200) or (obj.y > (window_height * window_scale) + 200 or obj.y < -200)
 			if obj_left_game_area then
 				collection[i] = nil
+			elseif obj.health then
+				if obj.health <= 0 then
+					collection[i] = nil
+				end
 			end
 		end
 	end
@@ -311,8 +336,10 @@ function reset_game()
 		table.insert(background, star)
 	end
 
-	rock = Enemy_Rock.new(game_width + 50, 200, -200, 0)
-	table.insert(enemies, rock)
+	rock1 = Enemy_Rock.new(game_width + 50, 200, -200, 0)
+	rock2 = Enemy_Rock.new(game_width + 200, 150, -250, 0)
+	table.insert(enemies, rock1)
+	table.insert(enemies, rock2)
 end
 
 
@@ -362,11 +389,7 @@ function update_game(dt)
 	if love.keyboard.isDown('space') and not key_space_pressed then
 		sound_shot:play()
 		key_space_pressed = true
-		local water = MoveableObject.new(math.floor(carmine.x + 10), math.floor(carmine.y), 550, 0, math.floor(carmine.x + 10), math.floor(carmine.y), 20, 21)
-		water.sheet = load_image('sprites/water_drop/water_drop_sheet.png')
-		water.animation = initialize_animation(water.sheet, 20, 21, '1-4', 0.05)
-		water.id = "water_drop"
-		water.friendly = true
+		local water = Projectile_Water.new(math.floor(carmine.x + 10), math.floor(carmine.y), 550, 0, true)
 		table.insert(bullets, water)
 		circ_r = 25
 	end
@@ -393,8 +416,8 @@ function update_game(dt)
 			if get_collision(enemies[i], bullets[p]) and bullets[p].friendly then
 				local slash = love.audio.newSource("sounds/slash.wav", 'static')
 				slash:play()
-				enemies[i] = nil
-				bullets[p] = nil
+				enemies[i].health = enemies[i].health - 1
+				bullets[p].health = bullets[p].health - 1
 				return
 			end
 		end
