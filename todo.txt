@@ -18,7 +18,7 @@ technical todo
 
 4/6/2024
 todo
-	make enemy flash when take dmg
+	make enemy flash when take dmg (hit reactions)
+	have explosion on enemy death
 	make actual ui with health and score values
-
-
+	figure out a better way to make the same sound effect play twice (overlapping sounds)

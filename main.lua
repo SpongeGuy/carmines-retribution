@@ -1,5 +1,5 @@
-
-
+-- carmine's retribution
+-- sponge guy
 
 -- variables that will literally never change here
 local font_consolas = love.graphics.setNewFont("crafters-delight.ttf", 8)
@@ -26,6 +26,10 @@ local color_yellow = {251, 242, 54}
 
 local fire_colors = {color_brightred, color_orange, color_yellow, color_orange}
 local grey_colors = {color_white, color_white, color_white, color_lightgrey, color_grey, color_lightgrey}
+
+
+-- shader effects
+
 
 -- helpful functions
 local MoveableObject = {}
@@ -228,7 +232,18 @@ end
 
 function draw_collection(collection)
 	for _, obj in pairs(collection) do
+		-- if enemy colliding with friendly bullet, set shader
+
 		obj.animation:draw(obj.sheet, obj.x, obj.y)
+	end
+end
+
+function draw_enemies()
+	for i = 1, #enemies do
+		if enemies[i] then -- check if enemy exists because my logic in update_game is flawed and im lazy
+			local enemy = enemies[i]
+			enemy.animation:draw(enemy.sheet, enemy.x, enemy.y)
+		end
 	end
 end
 
@@ -294,6 +309,14 @@ function love.load()
 	timer_blink = 1
 	timer_game = 1
 	timer_storage = nil
+
+	shader_flash = love.graphics.newShader[[
+		vec4 effect(vec4 color, Image texture, vec2 texture_coords, vec2 screen_coords)
+		{
+			vec4 pixel = Texel(texture, texture_coords); // get current pixel color
+			return vec4(1.0, pixel.g, pixel.b, pixel.a); // return modified pixel color
+		}
+	]]
 end
 
 function reset_game()
@@ -364,6 +387,7 @@ function update_game(dt)
 	-- carmine
 	if carmine.lives == 0 then
 		mode = 'gameover'
+		reset_game()
 	end
 	carmine_wings_left_animation:update(dt)
 	carmine_wings_right_animation:update(dt)
@@ -399,11 +423,11 @@ function update_game(dt)
 	
 
 	-- collections
+
 	
 	update_collection(bullets, dt)
 	update_collection(background, dt)
 	update_collection(enemies, dt)
-
 	for i = 1, #enemies do
 		if get_collision(carmine, enemies[i]) then
 			sound_slash:play()
@@ -413,12 +437,14 @@ function update_game(dt)
 	end
 	for i = 1, #enemies do
 		for p = 1, #bullets do
-			if get_collision(enemies[i], bullets[p]) and bullets[p].friendly then
-				local slash = love.audio.newSource("sounds/slash.wav", 'static')
-				slash:play()
-				enemies[i].health = enemies[i].health - 1
-				bullets[p].health = bullets[p].health - 1
-				return
+			if enemies[i] and bullets[p] then -- check if they exist bc logic in update_game is flawed and im dumb
+				if get_collision(enemies[i], bullets[p]) and bullets[p].friendly then
+					local slash = love.audio.newSource("sounds/slash.wav", 'static')
+					slash:play()
+					enemies[i].health = enemies[i].health - 1
+					bullets[p].health = bullets[p].health - 1
+					return
+				end
 			end
 		end
 	end
@@ -427,6 +453,13 @@ function update_game(dt)
 			sound_slash:play()
 			carmine.lives = carmine.lives - 1
 		end
+	end
+
+	
+
+	if #enemies < 3 then
+		local rock = Enemy_Rock.new(game_width + 50, math.random(50, game_height - 50), -300, 0)
+		table.insert(enemies, rock)
 	end
 
 end
@@ -485,7 +518,7 @@ function draw_game()
 
 	-- bullets
 	draw_collection(bullets)
-	draw_collection(enemies)
+	draw_enemies()
 
 	-- carmine
 	carmine_wings_left_animation:draw(carmine_wings_right_sheet, carmine.x - 45, carmine.y - 35)
@@ -495,10 +528,9 @@ function draw_game()
 	love.graphics.circle('fill', circ_x, circ_y, circ_r)
 
 	love.graphics.print(carmine.lives, 0, 0)
-	-- carmine:draw_hitbox()
-	-- for _, enemy in pairs(enemies) do
-	-- 	enemy:draw_hitbox()
-	-- end
+
+	
+	
 end
 
 function draw_levelscreen()
