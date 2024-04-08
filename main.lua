@@ -314,6 +314,7 @@ function love.load()
 	timer_levelselect_delay = nil
 	timer_invulnerable = nil
 	timer_shot = nil
+	timer_secondshot = nil
 
 	shader_flash = love.graphics.newShader[[
 		vec4 effect(vec4 color, Image texture, vec2 texture_coords, vec2 screen_coords)
@@ -330,7 +331,7 @@ function reset_game()
 	background = {}
 	enemies = {}
 
-	sound_shot = love.audio.newSource("sounds/ball_shot.wav", 'static')
+	
 	sound_slash = love.audio.newSource("sounds/slash.wav", 'static')
 	circ_r = 0
 	circ_x = 0
@@ -387,10 +388,16 @@ function update_game(dt)
 
 	
 
-	-- invulnerability
+	-- invulnerability timer
 	if timer_invulnerable then
 		if timer_game - timer_invulnerable > 2 then
 			timer_invulnerable = nil
+		end
+	end
+	-- shot timer
+	if timer_shot then
+		if timer_game - timer_shot > 0.3 then
+			timer_shot = nil
 		end
 	end
 
@@ -420,24 +427,34 @@ function update_game(dt)
 	if circ_r < 0 then circ_r = 0 end
 
 	-- water drop
-	if love.keyboard.isDown('space') and not key_space_pressed then
-		sound_shot:play()
+	if love.keyboard.isDown('space') and not timer_shot then
+		timer_shot = timer_game
+		timer_secondshot = timer_game
+		local sound = love.audio.newSource("sounds/ball_shot.wav", 'static')
+		sound:play()
 		key_space_pressed = true
 		local water = Projectile_Water.new(math.floor(carmine.x + 10), math.floor(carmine.y), 550, 0, true)
 		table.insert(bullets, water)
 		circ_r = 25
 	end
 
-
+	if timer_secondshot and timer_game - timer_secondshot > 0.075 then
+		local water = Projectile_Water.new(math.floor(carmine.x + 10), math.floor(carmine.y), 550, 0, true)
+		table.insert(bullets, water)
+		timer_secondshot = nil
+		local sound = love.audio.newSource("sounds/ball_shot.wav", 'static')
+		sound:play()
+		circ_r = 20
+	end
 
 	
 
-	-- collections
-
-	
+	-- collection updates
 	update_collection(bullets, dt)
 	update_collection(background, dt)
 	update_collection(enemies, dt)
+
+	-- collision effects
 	for i = 1, #enemies do
 		if get_collision(carmine, enemies[i]) then
 			if not timer_invulnerable then
@@ -582,6 +599,9 @@ function love.draw()
 		end
 		
 		love.graphics.print(timer_game, 50, 10)
+		if timer_shot then
+			love.graphics.print(timer_game - timer_shot, 50, 20)
+		end
 		if mode == 'game' then
 			draw_game()
 		elseif mode == 'start' then
