@@ -306,9 +306,14 @@ function love.load()
 	love.window.setTitle("CARMINE'S RETRIBUTION")
 	love.window.setIcon(love.image.newImageData("sprites/carmine/carmine_body.png"))
 	mode = 'start'
+
+	-- timers
+	-- - make sure to set timer to nill after using
 	timer_blink = 1
 	timer_game = 1
-	timer_storage = nil
+	timer_levelselect_delay = nil
+	timer_invulnerable = nil
+	timer_shot = nil
 
 	shader_flash = love.graphics.newShader[[
 		vec4 effect(vec4 color, Image texture, vec2 texture_coords, vec2 screen_coords)
@@ -335,7 +340,7 @@ function reset_game()
 	-- carmine
 	carmine = MoveableObject.new(100, 200, 0, 0, 114, 208, 14, 7)
 	carmine.id = "carmine"
-	carmine.lives = 1
+	carmine.lives = 3
 
 	local g
 	carmine_body_sheet = load_image('sprites/carmine/carmine_body_sheet.png')
@@ -382,10 +387,15 @@ function update_game(dt)
 
 	
 
-	-- special behavior on collision with carmine
+	-- invulnerability
+	if timer_invulnerable then
+		if timer_game - timer_invulnerable > 2 then
+			timer_invulnerable = nil
+		end
+	end
 
 	-- carmine
-	if carmine.lives == 0 then
+	if carmine.lives <= 0 then
 		mode = 'gameover'
 		reset_game()
 	end
@@ -430,9 +440,29 @@ function update_game(dt)
 	update_collection(enemies, dt)
 	for i = 1, #enemies do
 		if get_collision(carmine, enemies[i]) then
-			sound_slash:play()
-			enemies[i] = nil
-			carmine.lives = carmine.lives - 1
+			if not timer_invulnerable then
+				sound_slash:play()
+				enemies[i].health = enemies[i].health - 1
+				carmine.lives = carmine.lives - 1
+				timer_invulnerable = timer_game
+				return
+			else
+				
+				
+			end
+		end
+	end
+	for i = 1, #bullets do
+		if not bullets[i].friendly and get_collision(carmine, bullets[i]) then
+			if not timer_invulnerable then
+				sound_slash:play()
+				carmine.health = carmine.health - 1
+				timer_invulnerable = timer_game
+				return
+			else
+				
+				
+			end
 		end
 	end
 	for i = 1, #enemies do
@@ -448,17 +478,11 @@ function update_game(dt)
 			end
 		end
 	end
-	for i = 1, #bullets do
-		if not bullets[i].friendly and get_collision(carmine, bullets[i]) then
-			sound_slash:play()
-			carmine.lives = carmine.lives - 1
-		end
-	end
 
 	
 
 	if #enemies < 3 then
-		local rock = Enemy_Rock.new(game_width + 50, math.random(50, game_height - 50), -300, 0)
+		local rock = Enemy_Rock.new(game_width + 50, math.random(50, game_height - 50), -200, 0)
 		table.insert(enemies, rock)
 	end
 
@@ -466,12 +490,12 @@ end
 
 function update_levelscreen(dt)
 	reset_game()
-	if not timer_storage then
-		timer_storage = timer_game
+	if not timer_levelselect_delay then
+		timer_levelselect_delay = timer_game
 	end
-	if timer_game - timer_storage > 2 then
+	if timer_game - timer_levelselect_delay > 2 then
 		mode = 'game'
-		timer_storage = nil
+		timer_levelselect_delay = nil
 	end
 end
 
@@ -553,7 +577,10 @@ end
 
 function love.draw()
 	push:start()
-		love.graphics.print(timer_blink, 50, 0)
+		if timer_invulnerable then
+			love.graphics.print(timer_game - timer_invulnerable, 50, 0)
+		end
+		
 		love.graphics.print(timer_game, 50, 10)
 		if mode == 'game' then
 			draw_game()
