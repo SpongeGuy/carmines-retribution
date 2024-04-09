@@ -40,7 +40,7 @@ function log1:log(...)
 	  text = text .. ' ' .. tostring(select(i, ...))
 	end
   table.insert(self, 1, text)
-	if #self > 30 then
+	if #self > 60 then
 		table.remove(self)
 	end
 end
@@ -213,32 +213,16 @@ end
 function update_collection(collection, dt)
 	local str = "{"
 	-- mark objects for removal
- 	for i = 1, #collection do
+ 	for i = #collection, 1, -1 do
 		local obj = collection[i]
 		if obj then
-			local obj_left_game_area = (obj.x > (window_width * window_scale) + 200 or obj.x < -200) or (obj.y > (window_height * window_scale) + 200 or obj.y < -200)
+			local obj_left_game_area = (obj.x > (window_width / window_scale) + 200 or obj.x < -200) or (obj.y > (window_height / window_scale) + 200 or obj.y < -200)
 			if obj_left_game_area then
-				collection[i] = nil
-			elseif obj.health then
-				if obj.health <= 0 then
-					collection[i] = nil
-				end
+				table.remove(collection, i)
+			elseif obj.health and obj.health <= 0 then
+				table.remove(collection, i)
 			end
 		end
-	end
-
-	-- compact the array
-	local j = 0
-	for i = 1, #collection do
-		if collection[i] ~= nil then
-			j = j + 1
-			collection[j] = collection[i]
-		end
-	end
-
-	-- make the rest of array nil
-	for i = j + 1, #collection do
-		collection[i] = nil
 	end
 
 	-- update objects
@@ -251,7 +235,6 @@ function update_collection(collection, dt)
 
 	str = str.."}"
 	str = #collection
-	collectgarbage()
 end
 
 function draw_collection(collection)
@@ -266,7 +249,13 @@ function draw_enemies()
 	for i = 1, #enemies do
 		local enemy = enemies[i]
 		enemy.animation:draw(enemy.sheet, enemy.x, enemy.y)
-		enemy:draw_hitbox()
+	end
+end
+
+function draw_bullets()
+	for i = 1, #bullets do
+		bullets[i].animation:draw(bullets[i].sheet, bullets[i].x, bullets[i].y)
+		bullets[i]:draw_hitbox()
 	end
 end
 
@@ -459,12 +448,17 @@ function update_game(dt)
 	if timer_secondshot and timer_game - timer_secondshot > 0.075 then
 		local water = Projectile_Water.new(math.floor(carmine.x + 10), math.floor(carmine.y), 550, 0, true)
 		table.insert(bullets, water)
-		timer_secondshot = nil
+		timer_secondshot = nilv 
 		local sound = love.audio.newSource("sounds/ball_shot.wav", 'static')
 		sound:play()
 		circ_r = 20
 	end
 
+	if love.keyboard.isDown('c') then
+		for p = 1, #bullets do
+			bullets[p].health = bullets[p].health -1
+		end
+	end
 	
 
 	-- collection updates
@@ -473,6 +467,17 @@ function update_game(dt)
 	update_collection(enemies, dt)
 
 	-- collision effects
+	for i = 1, #enemies do
+		for p = 1, #bullets do
+			if get_collision(enemies[i], bullets[p]) and bullets[p].friendly then
+				local slash = love.audio.newSource("sounds/slash.wav", 'static')
+				slash:play()
+				enemies[i].health = enemies[i].health - 1
+				bullets[p].health = bullets[p].health - 1
+				logstring = logstring .. math.floor(bullets[p].hitx) .. "," .. math.floor(bullets[p].hity) .. " "
+			end
+		end
+	end
 	for i = 1, #enemies do
 		if get_collision(carmine, enemies[i]) then
 			if not timer_invulnerable then
@@ -500,22 +505,10 @@ function update_game(dt)
 			end
 		end
 	end
-	for i = 1, #enemies do
-		for p = 1, #bullets do
-			if get_collision(enemies[i], bullets[p]) and bullets[p].friendly then
-				local slash = love.audio.newSource("sounds/slash.wav", 'static')
-				slash:play()
-				enemies[i].health = enemies[i].health - 1
-				bullets[p].health = bullets[p].health - 1
-				return
-			end
-		end
-	end
-
 	
 
-	if #enemies < 3 then
-		local rock = Enemy_Rock.new(game_width + 50, math.random(50, game_height - 50), -100, 0)
+	if #enemies < 7 then
+		local rock = Enemy_Rock.new(math.random(50, game_width - 50), math.random(50, game_height - 50), 0, 0)
 		table.insert(enemies, rock)
 	end
 end
@@ -573,7 +566,7 @@ function draw_game()
 	draw_collection(background)
 
 	-- bullets
-	draw_collection(bullets)
+	draw_bullets()
 	draw_enemies()
 
 	-- carmine
@@ -584,6 +577,7 @@ function draw_game()
 	love.graphics.circle('fill', circ_x, circ_y, circ_r)
 
 	love.graphics.print(carmine.lives, 0, 0)
+	love.graphics.print((window_width / window_scale )+ 200, 0, 10)
 
 	
 	
