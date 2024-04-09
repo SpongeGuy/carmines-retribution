@@ -32,6 +32,30 @@ local grey_colors = {color_white, color_white, color_white, color_lightgrey, col
 
 
 -- helpful functions
+
+local log1, log2, log3 = {}, {}, {}
+function log1:log(...)
+	local text = ''
+	for i = 1, select('#', ...) do
+	  text = text .. ' ' .. tostring(select(i, ...))
+	end
+  table.insert(self, 1, text)
+	if #self > 30 then
+		table.remove(self)
+	end
+end
+
+function log1:draw(...)
+	love.graphics.print(table.concat(self, '\r\n'), ...)
+end
+
+log2.log  = log1.log
+log2.draw = log1.draw
+log3.log = log1.log
+log3.draw = log1.draw
+
+local counter = 0
+
 local MoveableObject = {}
 MoveableObject.__index = MoveableObject
 
@@ -240,10 +264,9 @@ end
 
 function draw_enemies()
 	for i = 1, #enemies do
-		if enemies[i] then -- check if enemy exists because my logic in update_game is flawed and im lazy
-			local enemy = enemies[i]
-			enemy.animation:draw(enemy.sheet, enemy.x, enemy.y)
-		end
+		local enemy = enemies[i]
+		enemy.animation:draw(enemy.sheet, enemy.x, enemy.y)
+		enemy:draw_hitbox()
 	end
 end
 
@@ -377,7 +400,10 @@ end
 -- game functions
 
 function update_game(dt)
-	-- update gramer logic
+	if carmine.lives <= 0 then
+		mode = 'gameover'
+		reset_game()
+	end
 
 	if love.keyboard.isDown('r') then
 		reset_game()
@@ -389,23 +415,15 @@ function update_game(dt)
 	
 
 	-- invulnerability timer
-	if timer_invulnerable then
-		if timer_game - timer_invulnerable > 2 then
-			timer_invulnerable = nil
-		end
+	if timer_invulnerable and timer_game - timer_invulnerable > 2 then
+		timer_invulnerable = nil
 	end
 	-- shot timer
-	if timer_shot then
-		if timer_game - timer_shot > 0.3 then
-			timer_shot = nil
-		end
+	if timer_shot and timer_game - timer_shot > 0.3 then
+		timer_shot = nil
 	end
 
-	-- carmine
-	if carmine.lives <= 0 then
-		mode = 'gameover'
-		reset_game()
-	end
+	
 	carmine_wings_left_animation:update(dt)
 	carmine_wings_right_animation:update(dt)
 	carmine:control(250, "a", "d", "w", "s")
@@ -484,14 +502,12 @@ function update_game(dt)
 	end
 	for i = 1, #enemies do
 		for p = 1, #bullets do
-			if enemies[i] and bullets[p] then -- check if they exist bc logic in update_game is flawed and im dumb
-				if get_collision(enemies[i], bullets[p]) and bullets[p].friendly then
-					local slash = love.audio.newSource("sounds/slash.wav", 'static')
-					slash:play()
-					enemies[i].health = enemies[i].health - 1
-					bullets[p].health = bullets[p].health - 1
-					return
-				end
+			if get_collision(enemies[i], bullets[p]) and bullets[p].friendly then
+				local slash = love.audio.newSource("sounds/slash.wav", 'static')
+				slash:play()
+				enemies[i].health = enemies[i].health - 1
+				bullets[p].health = bullets[p].health - 1
+				return
 			end
 		end
 	end
@@ -499,10 +515,9 @@ function update_game(dt)
 	
 
 	if #enemies < 3 then
-		local rock = Enemy_Rock.new(game_width + 50, math.random(50, game_height - 50), -200, 0)
+		local rock = Enemy_Rock.new(game_width + 50, math.random(50, game_height - 50), -100, 0)
 		table.insert(enemies, rock)
 	end
-
 end
 
 function update_levelscreen(dt)
