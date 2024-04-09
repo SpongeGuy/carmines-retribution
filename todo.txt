@@ -22,3 +22,12 @@ todo
 	have explosion on enemy death
 	make actual ui with health and score values
 	figure out a better way to make the same sound effect play twice (overlapping sounds)
+	use love.timer.getTime() to store timers
+		make an array to store timers
+		this means figuring out a way to merge the same type of timer when created
+		basically have a timer id method
+		or figure out how to use threads
+	on bullet hit, set flag to true
+		if flag is true, draw sprite red
+		after a time, set flag to false
+
