@@ -56,6 +56,29 @@ log3.draw = log1.draw
 
 local counter = 0
 
+local CircleObject = {}
+CircleObject.__index = CircleObject
+
+function CircleObject.new(x, y, r, dr)
+	self.x = x or 0
+	self.y = y or 0
+	self.r = r or 0
+	self.dr = dr or 0
+end
+
+function CircleObject:update()
+	if self.r > 0 then
+		self.r = self.r - self.dr
+	end
+	if self.r < 0 then
+		self.r = 0
+	end
+end
+
+function CircleObject:draw()
+
+end
+
 local MoveableObject = {}
 MoveableObject.__index = MoveableObject
 
@@ -136,6 +159,25 @@ end
 
 -- define enemy types
 
+local Player = {}
+Player.__index = Player
+
+setmetatable(Player, {__index = MoveableObject})
+
+function Player.new(x, y, dx, dy, hitx, hity, hitw, hith, flags)
+	local self = MoveableObject.new(x, y, dx, dy, hitx, hity, hitw, hith, flags)
+	self.texture_height = hith or 0
+	self.texture_width = hitw or 0
+	self.friendly = true
+	self.id = "player"
+	self.health = 3
+	return self
+end
+
+function Player:shoot()
+	
+end
+
 local Enemy_Rock = {}
 Enemy_Rock.__index = Enemy_Rock
 
@@ -166,6 +208,7 @@ function Projectile_Water.new(x, y, dx, dy, friendly)
 	self.hity = y
 	self.hitw = 20
 	self.hith = 21
+	self.dx = -500
 	self.sheet = load_image("sprites/water_drop/water_drop_sheet.png")
 	self.animation = initialize_animation(self.sheet, 20, 21, '1-4', 0.1)
 	self.friendly = friendly
@@ -474,7 +517,6 @@ function update_game(dt)
 				slash:play()
 				enemies[i].health = enemies[i].health - 1
 				bullets[p].health = bullets[p].health - 1
-				logstring = logstring .. math.floor(bullets[p].hitx) .. "," .. math.floor(bullets[p].hity) .. " "
 			end
 		end
 	end
@@ -508,7 +550,7 @@ function update_game(dt)
 	
 
 	if #enemies < 7 then
-		local rock = Enemy_Rock.new(math.random(50, game_width - 50), math.random(50, game_height - 50), 0, 0)
+		local rock = Enemy_Rock.new(game_width + 50, math.random(50, game_height - 50), -150, 0)
 		table.insert(enemies, rock)
 	end
 end
