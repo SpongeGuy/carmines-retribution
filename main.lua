@@ -125,14 +125,19 @@ end
 local CircleObject = {}
 CircleObject.__index = CircleObject
 
-function CircleObject.new(x, y, r, dr)
+function CircleObject.new(x, y, r, dr, dx, dy)
+	local self = setmetatable({}, CircleObject)
 	self.x = x or 0
 	self.y = y or 0
 	self.r = r or 0
 	self.dr = dr or 0
+	self.dx = dx or 0
+	self.dy = dy or 0
 end
 
 function CircleObject:update()
+	self.x = self.x + self.dx
+	self.y = self.y + self.dy
 	if self.r > 0 then
 		self.r = self.r - self.dr
 	end
@@ -166,6 +171,8 @@ function MoveableObject.new(x, y, dx, dy, hitx, hity, hitw, hith, flags) --here
 	self.looping = flags.looping or false
 	self.friendly = flags.friendly or nil
 	self.health = flags.health or nil
+
+	self.flash = 0
 	return self
 end
 
@@ -190,6 +197,11 @@ function MoveableObject:update(dt)
 		elseif self.dx > 0 and self.x > game_width + 50 then
 			self.x = -50
 		end
+	end
+
+	-- flash tickdown
+	if self.flash and self.flash > 0 then
+		self.flash = self.flash - (1 * dt)
 	end
 
 	-- animation zone
@@ -332,12 +344,13 @@ function reset_game()
 	bullets = {}
 	background = {}
 	enemies = {}
+	explosions = {}
 
 	
 	sound_slash = love.audio.newSource("sounds/slash.wav", 'static')
-	circ_r = 0
-	circ_x = 0
-	circ_y = 0
+	shot_circ_r = 0
+	shot_circ_x = 0
+	shot_circ_y = 0
 
 	
 	-- carmine
@@ -451,12 +464,12 @@ function update_game(dt)
 	end
 
 	-- shot burst data
-	circ_x = carmine.x + 30
-	circ_y = carmine.y + 10
-	if circ_r > 0 then
-		circ_r = circ_r - 180 * dt
+	shot_circ_x = carmine.x + 30
+	shot_circ_y = carmine.y + 10
+	if shot_circ_r > 0 then
+		shot_circ_r = shot_circ_r - 180 * dt
 	end
-	if circ_r < 0 then circ_r = 0 end
+	if shot_circ_r < 0 then shot_circ_r = 0 end
 
 	-- water drop
 	if love.keyboard.isDown('space') and not timer_shot then
@@ -467,7 +480,7 @@ function update_game(dt)
 		key_space_pressed = true
 		local water = Projectile_Water.new(math.floor(carmine.x + 10), math.floor(carmine.y), 550, 0, true)
 		table.insert(bullets, water)
-		circ_r = 25
+		shot_circ_r = 25
 	end
 
 	if timer_secondshot and timer_game - timer_secondshot > 0.1 then
@@ -476,7 +489,7 @@ function update_game(dt)
 		timer_secondshot = nilv 
 		local sound = love.audio.newSource("sounds/ball_shot.wav", 'static')
 		sound:play()
-		circ_r = 20
+		shot_circ_r = 20
 	end
 
 	if love.keyboard.isDown('c') then
@@ -490,19 +503,27 @@ function update_game(dt)
 	update_collection(bullets, dt)
 	update_collection(background, dt)
 	update_collection(enemies, dt)
+	for i = 1, #explosions do
+		local explosion = explosions[i]
+		explosion:update()
+	end
+
 
 	-- collision effects
-	for i = 1, #enemies do
+	for i = 1, #enemies do -- friendly bullet collide with enemy
 		for p = 1, #bullets do
 			if get_collision(enemies[i], bullets[p]) and bullets[p].friendly then
 				local slash = love.audio.newSource("sounds/slash.wav", 'static')
 				slash:play()
 				enemies[i].health = enemies[i].health - 1
 				bullets[p].health = bullets[p].health - 1
+				enemies[i].flash = 0.05
+				local explosion = CircleObject.new(enemies[i].x, enemies[i].y, 100, 3)
+				table.insert(explosions, explosion)
 			end
 		end
 	end
-	for i = 1, #enemies do
+	for i = 1, #enemies do -- enemy collide with player
 		if get_collision(carmine, enemies[i]) then
 			if not timer_invulnerable then
 				sound_slash:play()
@@ -516,7 +537,7 @@ function update_game(dt)
 			end
 		end
 	end
-	for i = 1, #bullets do
+	for i = 1, #bullets do -- enemy bullet collide with carmine
 		if not bullets[i].friendly and get_collision(carmine, bullets[i]) then
 			if not timer_invulnerable then
 				sound_slash:play()
@@ -602,12 +623,12 @@ end
 function draw_enemies()
 	for i = 1, #enemies do
 		local enemy = enemies[i]
-		for p = 1, #bullets do
-			if get_collision(enemies[i], bullets[p]) and bullets[p].friendly then
-
-			end
+		if enemy.flash > 0 then
+			love.graphics.setShader(shader_flash)
 		end
+
 		enemy.animation:draw(enemy.sheet, enemy.x, enemy.y)
+		love.graphics.setShader()
 	end
 end
 
@@ -619,22 +640,32 @@ function draw_bullets()
 	end
 end
 
+function draw_explosions()
+	for i = 1, #explosions do
+		local explosion = explosions[i]
+		if math.sin(timer_game * 50) < 0 then
+			love.graphics.setColor(1, 1, 1)
+		else
+			love.graphics.setColor(1, 0.2, 0.3)
+		end
+		love.graphics.circle("fill", explosion.x, explosion.y, explosion.r)
+	end
+end
+
 function draw_player()
 	if not timer_invulnerable then
 		carmine_wings_left_animation:draw(carmine_wings_right_sheet, carmine.x - 45, carmine.y - 35)
 		carmine_body_animation:draw(carmine_body_sheet, carmine.x, carmine.y)
 		carmine_wings_right_animation:draw(carmine_wings_left_sheet, carmine.x - 45, carmine.y - 35)
 	else
-		if math.sin(timer_game * 100) < 0 then
+		if math.sin(timer_game * 50) < 0.75 then
 			carmine_wings_left_animation:draw(carmine_wings_right_sheet, carmine.x - 45, carmine.y - 35)
 			carmine_body_animation:draw(carmine_body_sheet, carmine.x, carmine.y)
 			carmine_wings_right_animation:draw(carmine_wings_left_sheet, carmine.x - 45, carmine.y - 35)
 		end
-
-
 	end
 	love.graphics.setColor(1, 1, 1)
-	love.graphics.circle('fill', circ_x, circ_y, circ_r)
+	love.graphics.circle('fill', shot_circ_x, shot_circ_y, shot_circ_r)
 end
 
 function draw_game()
@@ -644,6 +675,7 @@ function draw_game()
 	-- bullets
 	draw_bullets()
 	draw_enemies()
+	draw_explosions()
 
 	-- carmine
 	
