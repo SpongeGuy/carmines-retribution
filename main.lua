@@ -129,17 +129,18 @@ function CircleObject.new(x, y, r, dr, dx, dy)
 	local self = setmetatable({}, CircleObject)
 	self.x = x or 0
 	self.y = y or 0
-	self.r = r or 0
+	self.r = r
 	self.dr = dr or 0
 	self.dx = dx or 0
 	self.dy = dy or 0
+	return self
 end
 
-function CircleObject:update()
-	self.x = self.x + self.dx
-	self.y = self.y + self.dy
+function CircleObject:update(dt)
+	self.x = (self.x + self.dx * dt)
+	self.y = (self.y + self.dy * dt)
 	if self.r > 0 then
-		self.r = self.r - self.dr
+		self.r = self.r - self.dr * dt
 	end
 	if self.r < 0 then
 		self.r = 0
@@ -503,12 +504,16 @@ function update_game(dt)
 	update_collection(bullets, dt)
 	update_collection(background, dt)
 	update_collection(enemies, dt)
-	for i = 1, #explosions do
+	local logstring = "h:"
+	for i = #explosions, 1, -1 do
 		local explosion = explosions[i]
-		explosion:update()
+		explosion:update(dt)
+		if explosion.r <= 0 then
+			table.remove(explosions, i)
+		end
 	end
-
-
+	
+	
 	-- collision effects
 	for i = 1, #enemies do -- friendly bullet collide with enemy
 		for p = 1, #bullets do
@@ -518,13 +523,15 @@ function update_game(dt)
 				if enemies[i].health <= 0 then
 					local sound = love.audio.newSource("sounds/block_hit.wav", 'static')
 					sound:play()
+					local calvin = CircleObject.new(enemies[i].x + enemies[i].hitw/2, enemies[i].y + enemies[i].hith/2, 50, 200, enemies[i].dx, enemies[i].dy)
+					table.insert(explosions, calvin)
+					logstring = logstring..calvin.r
 				else
 					local sound = love.audio.newSource("sounds/deep_hit.wav", 'static')
 					sound:play()
 				end
 				enemies[i].flash = 0.05
-				local explosion = CircleObject.new(enemies[i].x, enemies[i].y, 100, 3)
-				table.insert(explosions, explosion)
+				
 			end
 		end
 	end
@@ -555,6 +562,7 @@ function update_game(dt)
 			end
 		end
 	end
+	log1:log(logstring)
 	
 
 	if #enemies < 7 then
@@ -646,6 +654,7 @@ end
 
 function draw_explosions()
 	for i = 1, #explosions do
+		print(i)
 		local explosion = explosions[i]
 		if math.sin(timer_game * 50) < 0 then
 			love.graphics.setColor(1, 1, 1)
@@ -653,6 +662,7 @@ function draw_explosions()
 			love.graphics.setColor(1, 0.2, 0.3)
 		end
 		love.graphics.circle("fill", explosion.x, explosion.y, explosion.r)
+		love.graphics.setColor(1, 1, 1)
 	end
 end
 
@@ -725,6 +735,7 @@ function love.draw()
 		elseif mode == 'levelscreen' then
 			draw_levelscreen()
 		end
+		log1:draw(0, 0)
 	push:finish()
 end
 
