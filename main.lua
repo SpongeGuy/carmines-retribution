@@ -334,7 +334,7 @@ function love.load()
 		vec4 effect(vec4 color, Image texture, vec2 texture_coords, vec2 screen_coords)
 		{
 			vec4 pixel = Texel(texture, texture_coords); // get current pixel color
-			return vec4(1.0, pixel.g, pixel.b, pixel.a); // return modified pixel color
+			return vec4(1.0, 1.0, 1.0, pixel.a); // return modified pixel color
 		}
 	]]
 end
@@ -513,10 +513,15 @@ function update_game(dt)
 	for i = 1, #enemies do -- friendly bullet collide with enemy
 		for p = 1, #bullets do
 			if get_collision(enemies[i], bullets[p]) and bullets[p].friendly then
-				local slash = love.audio.newSource("sounds/slash.wav", 'static')
-				slash:play()
 				enemies[i].health = enemies[i].health - 1
 				bullets[p].health = bullets[p].health - 1
+				if enemies[i].health <= 0 then
+					local sound = love.audio.newSource("sounds/block_hit.wav", 'static')
+					sound:play()
+				else
+					local sound = love.audio.newSource("sounds/deep_hit.wav", 'static')
+					sound:play()
+				end
 				enemies[i].flash = 0.05
 				local explosion = CircleObject.new(enemies[i].x, enemies[i].y, 100, 3)
 				table.insert(explosions, explosion)
@@ -636,7 +641,6 @@ function draw_bullets()
 	for i = 1, #bullets do
 		local bullet = bullets[i]
 		bullet.animation:draw(bullet.sheet, bullet.x, bullet.y)
-		bullet:draw_hitbox()
 	end
 end
 
