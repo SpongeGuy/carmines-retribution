@@ -31,7 +31,13 @@ local grey_colors = {color_white, color_white, color_white, color_lightgrey, col
 -- shader effects
 
 
--- helpful functions
+
+
+
+--  __  __  ____  ____  __    ____  ____  ____  ____  ___ 
+-- (  )(  )(_  _)(_  _)(  )  (_  _)(_  _)(_  _)( ___)/ __)
+--  )(__)(   )(   _)(_  )(__  _)(_   )(   _)(_  )__) \__ \
+-- (______) (__) (____)(____)(____) (__) (____)(____)(___/
 
 local log1, log2, log3 = {}, {}, {}
 function log1:log(...)
@@ -54,7 +60,67 @@ log2.draw = log1.draw
 log3.log = log1.log
 log3.draw = log1.draw
 
-local counter = 0
+function initialize_animation(sheet, frame_width, frame_height, frames, duration)
+	local a = anim8.newGrid(frame_width, frame_height, sheet:getWidth(), sheet:getHeight())
+	return anim8.newAnimation(a(frames, 1), duration)
+end
+
+-- returns a number. if input is lower than low or higher than high, it returns corresponding value. 
+-- else, it returns the value
+function clamp(value, low, high)
+	if value < low then
+		value = low
+	end
+	if value > high then
+		value = high
+	end
+	return value
+end
+
+-- get if there is a collision between two objects
+function get_collision(obj1, obj2)
+	if obj1.hitx + obj1.hitw < obj2.hitx then
+		return false
+	elseif obj1.hity > obj2.hity + obj2.hith then
+		return false
+	elseif obj1.hitx > obj2.hitx + obj2.hitw then
+		return false
+	elseif obj1.hity + obj1.hith < obj2.hity then
+		return false
+	end
+	return true
+end
+
+function load_image(path)
+	local info = love.filesystem.getInfo(path)
+	if info then
+		return love.graphics.newImage(path)
+	end
+	print("Couldn't grab image from " .. path)
+end
+
+
+-- USED TO ALTERNATE COLORS FOR TEXT OR OTHER SHIT
+-- WARNING: THIS DOESN'T START THE BLINK TIMER
+function blink(colors)
+	if not colors then
+		return love.math.colorFromBytes(color_white[1], color_white[2], color_white[3])
+	end
+	if timer_blink > #colors + 1 then
+		timer_blink = 1
+	end
+	local i = math.floor(timer_blink)
+	return love.math.colorFromBytes(colors[i][1], colors[i][2], colors[i][3])
+end
+
+
+
+
+
+--  _____  ____   ____  ____  ___  ____  ___ 
+-- (  _  )(  _ \ (_  _)( ___)/ __)(_  _)/ __)
+--  )(_)(  ) _ <.-_)(   )__)( (__   )(  \__ \
+-- (_____)(____/\____) (____)\___) (__) (___/
 
 local CircleObject = {}
 CircleObject.__index = CircleObject
@@ -208,7 +274,7 @@ function Projectile_Water.new(x, y, dx, dy, friendly)
 	self.hity = y
 	self.hitw = 20
 	self.hith = 21
-	self.dx = -500
+	self.dx = 500
 	self.sheet = load_image("sprites/water_drop/water_drop_sheet.png")
 	self.animation = initialize_animation(self.sheet, 20, 21, '1-4', 0.1)
 	self.friendly = friendly
@@ -217,136 +283,6 @@ function Projectile_Water.new(x, y, dx, dy, friendly)
 	return self
 end
 
--- local BulletObject = {}
--- BulletObject.__index = BulletObject
-
--- setmetatable(BulletObject, {__index = MoveableObject})
-
--- function BulletObject.new(x, y, dx, dy, w, h, sheet, animation)
--- 	local self = MoveableObject.new(x, y, dx, dy, w, h, sheet, animation)
--- 	setmetatable(self, BulletObject)
--- 	self.friendly = false
--- 	return self
--- end
-
--- function BulletObject:update(dt)
--- 	MoveableObject.update(self, dt)
-
--- end
-
--- local EnemyObject = {}
--- EnemyObject.__index = EnemyObject
--- setmetatable(EnemyObject, {__index = MoveableObject})
-
--- function EnemyObject.new(x, y, dx, dy, w, h, sheet, animation)
--- 	local self = MoveableObject.new(x, y, dx, dy, w, h, sheet, animation)
--- 	setmetatable(self, EnemyObject)
--- 	self.friendly = false
--- 	return self
--- end
-
-function initialize_animation(sheet, frame_width, frame_height, frames, duration)
-	local a = anim8.newGrid(frame_width, frame_height, sheet:getWidth(), sheet:getHeight())
-	return anim8.newAnimation(a(frames, 1), duration)
-end
-
--- sets a deletion condition
--- removes all nil values from a table, moving subsequent values up
--- if you need to destroy an object, just set it to nil within its collection, garbage collection will take care of it
-function update_collection(collection, dt)
-	local str = "{"
-	-- mark objects for removal
- 	for i = #collection, 1, -1 do
-		local obj = collection[i]
-		if obj then
-			local obj_left_game_area = (obj.x > (window_width / window_scale) + 200 or obj.x < -200) or (obj.y > (window_height / window_scale) + 200 or obj.y < -200)
-			if obj_left_game_area then
-				table.remove(collection, i)
-			elseif obj.health and obj.health <= 0 then
-				table.remove(collection, i)
-			end
-		end
-	end
-
-	-- update objects
-	for _, obj in pairs(collection) do
-		if obj then
-			str = str..obj.id..", "
-			obj:update(dt)
-		end
-	end
-
-	str = str.."}"
-	str = #collection
-end
-
-function draw_collection(collection)
-	for _, obj in pairs(collection) do
-		-- if enemy colliding with friendly bullet, set shader
-
-		obj.animation:draw(obj.sheet, obj.x, obj.y)
-	end
-end
-
-function draw_enemies()
-	for i = 1, #enemies do
-		local enemy = enemies[i]
-		enemy.animation:draw(enemy.sheet, enemy.x, enemy.y)
-	end
-end
-
-function draw_bullets()
-	for i = 1, #bullets do
-		bullets[i].animation:draw(bullets[i].sheet, bullets[i].x, bullets[i].y)
-		bullets[i]:draw_hitbox()
-	end
-end
-
-
--- returns a number. if input is lower than low or higher than high, it returns corresponding value. 
--- else, it returns the value
-function clamp(value, low, high)
-	if value < low then
-		value = low
-	end
-	if value > high then
-		value = high
-	end
-	return value
-end
-
--- get if there is a collision between two objects
-function get_collision(obj1, obj2)
-	if obj1.hitx + obj1.hitw < obj2.hitx then
-		return false
-	elseif obj1.hity > obj2.hity + obj2.hith then
-		return false
-	elseif obj1.hitx > obj2.hitx + obj2.hitw then
-		return false
-	elseif obj1.hity + obj1.hith < obj2.hity then
-		return false
-	end
-	return true
-end
-
-function load_image(path)
-	local info = love.filesystem.getInfo(path)
-	if info then
-		return love.graphics.newImage(path)
-	end
-	print("Couldn't grab image from " .. path)
-end
-
-function blink(colors)
-	if not colors then
-		return love.math.colorFromBytes(color_white[1], color_white[2], color_white[3])
-	end
-	if timer_blink > #colors + 1 then
-		timer_blink = 1
-	end
-	local i = math.floor(timer_blink)
-	return love.math.colorFromBytes(colors[i][1], colors[i][2], colors[i][3])
-end
 
 
 
@@ -354,6 +290,17 @@ end
 
 
 
+
+
+
+
+
+
+
+--   ___    __    __  __  ____    __    _____    __    ____  
+--  / __)  /__\  (  \/  )( ___)  (  )  (  _  )  /__\  (  _ \ 
+-- ( (_-. /(__)\  )    (  )__)    )(__  )(_)(  /(__)\  )(_) )
+--  \___/(__)(__)(_/\/\_)(____)  (____)(_____)(__)(__)(____/ 
 
 -- load functions
 
@@ -429,7 +376,42 @@ end
 
 
 
--- game functions
+
+
+--   ___    __    __  __  ____    __  __  ____  ____    __   ____  ____ 
+--  / __)  /__\  (  \/  )( ___)  (  )(  )(  _ \(  _ \  /__\ (_  _)( ___)
+-- ( (_-. /(__)\  )    (  )__)    )(__)(  )___/ )(_) )/(__)\  )(   )__) 
+--  \___/(__)(__)(_/\/\_)(____)  (______)(__)  (____/(__)(__)(__) (____)
+
+-- sets a deletion condition
+-- removes all nil values from a table, moving subsequent values up
+-- if you need to destroy an object, just set it to nil within its collection, garbage collection will take care of it
+function update_collection(collection, dt)
+	local str = "{"
+	-- mark objects for removal
+ 	for i = #collection, 1, -1 do
+		local obj = collection[i]
+		if obj then
+			local obj_left_game_area = (obj.x > (window_width / window_scale) + 200 or obj.x < -200) or (obj.y > (window_height / window_scale) + 200 or obj.y < -200)
+			if obj_left_game_area then
+				table.remove(collection, i)
+			elseif obj.health and obj.health <= 0 then
+				table.remove(collection, i)
+			end
+		end
+	end
+
+	-- update objects
+	for _, obj in pairs(collection) do
+		if obj then
+			str = str..obj.id..", "
+			obj:update(dt)
+		end
+	end
+
+	str = str.."}"
+	str = #collection
+end
 
 function update_game(dt)
 	if carmine.lives <= 0 then
@@ -451,7 +433,7 @@ function update_game(dt)
 		timer_invulnerable = nil
 	end
 	-- shot timer
-	if timer_shot and timer_game - timer_shot > 0.3 then
+	if timer_shot and timer_game - timer_shot > 0.4 then
 		timer_shot = nil
 	end
 
@@ -488,7 +470,7 @@ function update_game(dt)
 		circ_r = 25
 	end
 
-	if timer_secondshot and timer_game - timer_secondshot > 0.075 then
+	if timer_secondshot and timer_game - timer_secondshot > 0.1 then
 		local water = Projectile_Water.new(math.floor(carmine.x + 10), math.floor(carmine.y), 550, 0, true)
 		table.insert(bullets, water)
 		timer_secondshot = nilv 
@@ -601,7 +583,59 @@ end
 
 
 
--- draw functions
+
+
+
+--   ___    __    __  __  ____    ____  ____    __    _    _ 
+--  / __)  /__\  (  \/  )( ___)  (  _ \(  _ \  /__\  ( \/\/ )
+-- ( (_-. /(__)\  )    (  )__)    )(_) ))   / /(__)\  )    ( 
+--  \___/(__)(__)(_/\/\_)(____)  (____/(_)\_)(__)(__)(__/\__)
+
+function draw_collection(collection)
+	for _, obj in pairs(collection) do
+		-- if enemy colliding with friendly bullet, set shader
+
+		obj.animation:draw(obj.sheet, obj.x, obj.y)
+	end
+end
+
+function draw_enemies()
+	for i = 1, #enemies do
+		local enemy = enemies[i]
+		for p = 1, #bullets do
+			if get_collision(enemies[i], bullets[p]) and bullets[p].friendly then
+
+			end
+		end
+		enemy.animation:draw(enemy.sheet, enemy.x, enemy.y)
+	end
+end
+
+function draw_bullets()
+	for i = 1, #bullets do
+		local bullet = bullets[i]
+		bullet.animation:draw(bullet.sheet, bullet.x, bullet.y)
+		bullet:draw_hitbox()
+	end
+end
+
+function draw_player()
+	if not timer_invulnerable then
+		carmine_wings_left_animation:draw(carmine_wings_right_sheet, carmine.x - 45, carmine.y - 35)
+		carmine_body_animation:draw(carmine_body_sheet, carmine.x, carmine.y)
+		carmine_wings_right_animation:draw(carmine_wings_left_sheet, carmine.x - 45, carmine.y - 35)
+	else
+		if math.sin(timer_game * 100) < 0 then
+			carmine_wings_left_animation:draw(carmine_wings_right_sheet, carmine.x - 45, carmine.y - 35)
+			carmine_body_animation:draw(carmine_body_sheet, carmine.x, carmine.y)
+			carmine_wings_right_animation:draw(carmine_wings_left_sheet, carmine.x - 45, carmine.y - 35)
+		end
+
+
+	end
+	love.graphics.setColor(1, 1, 1)
+	love.graphics.circle('fill', circ_x, circ_y, circ_r)
+end
 
 function draw_game()
 	-- background
@@ -612,17 +646,10 @@ function draw_game()
 	draw_enemies()
 
 	-- carmine
-	carmine_wings_left_animation:draw(carmine_wings_right_sheet, carmine.x - 45, carmine.y - 35)
-	carmine_body_animation:draw(carmine_body_sheet, carmine.x, carmine.y)
-	carmine_wings_right_animation:draw(carmine_wings_left_sheet, carmine.x - 45, carmine.y - 35)
-	love.graphics.setColor(1, 1, 1)
-	love.graphics.circle('fill', circ_x, circ_y, circ_r)
-
+	
+	draw_player()
 	love.graphics.print(carmine.lives, 0, 0)
 	love.graphics.print((window_width / window_scale )+ 200, 0, 10)
-
-	
-	
 end
 
 function draw_levelscreen()
@@ -664,6 +691,11 @@ function love.draw()
 		end
 	push:finish()
 end
+
+
+
+
+
 
 function love.keyreleased(key)
 	if key == 'space' then
