@@ -327,7 +327,19 @@ function Projectile_Water.new(x, y, dx, dy, friendly)
 	return self
 end
 
+function death_effect_explode(enemy)
+	local sound = love.audio.newSource("sounds/block_hit.wav", 'static')
+	sound:play()
 
+	local enemy_burst = ExplosionObject.new(enemy.x + enemy.hitw/2, enemy.y + enemy.hith/2, 50, 200, enemy.dx * 0.75, enemy.dy * 0.75)
+	table.insert(explosions, enemy_burst)
+
+	local points = enemy.points
+	score = score + points
+	local pp = ParticleObject.new(enemy.x + enemy.hitw/2, enemy.y + enemy.hith/2, -50, 0, "points")
+	pp.data = points
+	table.insert(particles, pp)
+end
 
 
 
@@ -569,17 +581,7 @@ function update_game(dt)
 				enemies[i].health = enemies[i].health - 1
 				bullets[p].health = bullets[p].health - 1
 				if enemies[i].health <= 0 then
-					local sound = love.audio.newSource("sounds/block_hit.wav", 'static')
-					sound:play()
-
-					local enemy_burst = ExplosionObject.new(enemies[i].x + enemies[i].hitw/2, enemies[i].y + enemies[i].hith/2, 50, 200, enemies[i].dx * 0.75, enemies[i].dy * 0.75)
-					table.insert(explosions, enemy_burst)
-
-					local points = enemies[i].points
-					score = score + points
-					local pp = ParticleObject.new(enemies[i].x + enemies[i].hitw/2, enemies[i].y + enemies[i].hith/2, enemies[i].dx * 0.5, 0, "points")
-					pp.data = points
-					table.insert(particles, pp)
+					death_effect_explode(enemies[i])
 				else
 					local sound = love.audio.newSource("sounds/deep_hit.wav", 'static')
 					sound:play()
@@ -598,6 +600,13 @@ function update_game(dt)
 				sound_slash:play()
 				enemies[i].health = enemies[i].health - 1
 				carmine.lives = carmine.lives - 1
+				if enemies[i].health <= 0 then
+					death_effect_explode(enemies[i])
+				else
+					local sound = love.audio.newSource("sounds/deep_hit.wav", "static")
+					sound:play()
+				end
+				enemies[i].flash = 0.05
 				timer_invulnerable = timer_global
 				return
 			else
@@ -725,8 +734,10 @@ end
 function draw_particles()
 	for i = 1, #particles do
 		local particle = particles[i]
-		love.graphics.setColor(blink(grey_colors))
-		love.graphics.print(particle.data, particle.x, particle.y)
+		if particle.id == "points" then
+			love.graphics.setColor(blink(grey_colors))
+			love.graphics.print(particle.data, particle.x, particle.y)
+		end
 	end
 	love.graphics.setColor(1, 1, 1)
 end
