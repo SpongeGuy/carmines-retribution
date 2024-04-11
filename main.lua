@@ -8,8 +8,9 @@ local push = require 'push'
 
 -- global variables
 love.graphics.setDefaultFilter("nearest", "nearest")
-local game_width, game_height = 960, 540
+
 local window_width, window_height = love.window.getDesktopDimensions()
+local game_width, game_height = 960, 540
 local window_scale = window_width/game_width
 push:setupScreen(game_width, game_height, window_width, window_height, {windowed = true})
 
@@ -753,20 +754,32 @@ end
 
 function draw_levelscreen()
 	love.graphics.setColor(blink(grey_colors))
-	love.graphics.print("LEVEL 1", (game_width / 2) - 35, (game_height / 2) - 60)
-	love.graphics.print("FUCKING SPACE", (game_width / 2) - 55, (game_height / 2) - 40)
+	local text1 = "LEVEL 1"
+	local text2 = "OUTER SPACER"
+	love.graphics.print(text1, center_text(text1), (game_height / 2) - 60)
+	love.graphics.print(text2, center_text(text2), (game_height / 2) - 40)
+end
+
+-- returns x value
+function center_text(text)
+	local x = (game_width / 2) - math.floor((love.graphics.getFont():getWidth(text)) / 2)
+	return x
 end
 
 function draw_start()
 	love.graphics.setColor(blink(grey_colors))
-	love.graphics.print("CARMINE'S RETRIBUTION", (game_width / 2) - 70, (game_height / 2) - 60)
-	love.graphics.print("PRESS ANY KEY TO START", (game_width / 2) - 72, (game_height / 2 ) - 40)
+	local text1 = "CARMINE'S RETRIBUTION"
+	local text2 = "PRESS ANY KEY TO START"
+	love.graphics.print(text1, center_text(text1), (game_height / 2) - 60)
+	love.graphics.print(text2, center_text(text2), (game_height / 2 ) - 40)
 end
 
 function draw_gameover()
 	love.graphics.setColor(blink(fire_colors))
-	love.graphics.print("YOU SUCK", (game_width / 2) - 35, (game_height / 2) - 60)
-	love.graphics.print("NOT WORTHY OF CARMINE", (game_width / 2) - 70, (game_height / 2) - 40)
+	local text1 = "YOU SUCK"
+	local text2 = "NOT WORTHY OF CARMINE"
+	love.graphics.print(text1, (game_width / 2) - math.floor(font_consolas:getWidth(text1) / 2.2), (game_height / 2) - 60)
+	love.graphics.print(text2, (game_width / 2) - math.floor(font_consolas:getWidth(text2) / 2.2), (game_height / 2) - 40)
 end
 
 function love.draw()
