@@ -14,7 +14,7 @@ technical todo
 		table of timers?
 		store value key as a string?
 
--- DONE --
+
 
 4/6/2024
 todo
@@ -24,9 +24,13 @@ todo
 		if flag is true, draw sprite red
 		after a time, set flag to false
 
+-- DONE --
+
 4/10/2024
 	make actual ui with health and score values
 	figure out a better way to make the same sound effect play twice (overlapping sounds)
 	store timers in MoveableObject to make shit easy
 	make it so that enemies are knocked back by explosions
 	make it so that point value of enemies are drawn for a time after enemy death
+	have a good way to make the screen fucking pixelated because this resolution shit is bunk
+		estimated location of drawings on screen
