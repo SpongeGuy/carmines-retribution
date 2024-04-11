@@ -122,6 +122,32 @@ end
 --  )(_)(  ) _ <.-_)(   )__)( (__   )(  \__ \
 -- (_____)(____/\____) (____)\___) (__) (___/
 
+local ParticleObject = {}
+ParticleObject.__index = ParticleObject
+
+function ParticleObject.new(x, y, dx, dy, id)
+	local self = setmetatable({}, ParticleObject)
+	self.x = x or 0
+	self.y = y or 0
+	self.dx = dx or 0
+	self.dy = dy or 0
+	self.id = id or nil
+	self.data = nil
+	self.timer = timer_global
+	return self
+end
+
+function ParticleObject:update(dt)
+	self.x = math.floor(self.x + self.dx * dt)
+	self.y = math.floor(self.y + self.dy * dt)
+	if self.dx > 0 then
+		self.dx = self.dx * (10 * dt)
+	end
+	if self.dy > 0 then
+
+	end
+end
+
 local CircleObject = {}
 CircleObject.__index = CircleObject
 
@@ -137,10 +163,11 @@ function CircleObject.new(x, y, r, dr, dx, dy)
 end
 
 function CircleObject:update(dt)
-	self.x = (self.x + self.dx * dt)
-	self.y = (self.y + self.dy * dt)
+	self.x = (self.x + (self.dx) * dt)
+	self.y = (self.y + (self.dy) * dt)
 	if self.r > 0 then
 		self.r = self.r - self.dr * dt
+		self.dr = self.dr - 1
 	end
 	if self.r < 0 then
 		self.r = 0
@@ -172,7 +199,9 @@ function MoveableObject.new(x, y, dx, dy, hitx, hity, hitw, hith, flags) --here
 	self.looping = flags.looping or false
 	self.friendly = flags.friendly or nil
 	self.health = flags.health or nil
+	self.points = flags.points or 0
 
+	-- timers
 	self.flash = 0
 	return self
 end
@@ -273,6 +302,7 @@ function Enemy_Rock.new(x, y, dx, dy)
 	self.friendly = false
 	self.id = "evil_rock"
 	self.health = 3
+	self.points = 100
 	return self
 end
 
@@ -325,7 +355,7 @@ function love.load()
 	-- timers
 	-- - make sure to set timer to nill after using
 	timer_blink = 1
-	timer_game = 1
+	timer_global = 1
 	timer_levelselect_delay = nil
 	timer_invulnerable = nil
 	timer_shot = nil
@@ -346,6 +376,8 @@ function reset_game()
 	background = {}
 	enemies = {}
 	explosions = {}
+	particles = {}
+	score = 0
 
 	
 	sound_slash = love.audio.newSource("sounds/slash.wav", 'static')
@@ -428,6 +460,8 @@ function update_collection(collection, dt)
 end
 
 function update_game(dt)
+	local logstring = ""
+
 	if carmine.lives <= 0 then
 		mode = 'gameover'
 		reset_game()
@@ -436,18 +470,18 @@ function update_game(dt)
 	if love.keyboard.isDown('r') then
 		reset_game()
 	end
-	if timer_game > 32000 then
-		timer_game = 1
+	if timer_global > 32000 then
+		timer_global = 1
 	end
 
 	
 
 	-- invulnerability timer
-	if timer_invulnerable and timer_game - timer_invulnerable > 2 then
+	if timer_invulnerable and timer_global - timer_invulnerable > 2 then
 		timer_invulnerable = nil
 	end
 	-- shot timer
-	if timer_shot and timer_game - timer_shot > 0.4 then
+	if timer_shot and timer_global - timer_shot > 0.4 then
 		timer_shot = nil
 	end
 
@@ -474,8 +508,8 @@ function update_game(dt)
 
 	-- water drop
 	if love.keyboard.isDown('space') and not timer_shot then
-		timer_shot = timer_game
-		timer_secondshot = timer_game
+		timer_shot = timer_global
+		timer_secondshot = timer_global
 		local sound = love.audio.newSource("sounds/ball_shot.wav", 'static')
 		sound:play()
 		key_space_pressed = true
@@ -484,7 +518,7 @@ function update_game(dt)
 		shot_circ_r = 25
 	end
 
-	if timer_secondshot and timer_game - timer_secondshot > 0.1 then
+	if timer_secondshot and timer_global - timer_secondshot > 0.1 then
 		local water = Projectile_Water.new(math.floor(carmine.x + 10), math.floor(carmine.y), 550, 0, true)
 		table.insert(bullets, water)
 		timer_secondshot = nilv 
@@ -499,17 +533,23 @@ function update_game(dt)
 		end
 	end
 	
-
 	-- collection updates
 	update_collection(bullets, dt)
 	update_collection(background, dt)
 	update_collection(enemies, dt)
-	local logstring = "h:"
+	
 	for i = #explosions, 1, -1 do
 		local explosion = explosions[i]
 		explosion:update(dt)
 		if explosion.r <= 0 then
 			table.remove(explosions, i)
+		end
+	end
+	for i = #particles, 1, -1 do
+		local particle = particles[i]
+		particle:update(dt)
+		if timer_global - particle.timer > 2 then
+			table.remove(particles, i)
 		end
 	end
 	
@@ -523,9 +563,13 @@ function update_game(dt)
 				if enemies[i].health <= 0 then
 					local sound = love.audio.newSource("sounds/block_hit.wav", 'static')
 					sound:play()
-					local calvin = CircleObject.new(enemies[i].x + enemies[i].hitw/2, enemies[i].y + enemies[i].hith/2, 50, 200, enemies[i].dx, enemies[i].dy)
+					local calvin = CircleObject.new(enemies[i].x + enemies[i].hitw/2, enemies[i].y + enemies[i].hith/2, 50, 200, enemies[i].dx * 0.75, enemies[i].dy * 0.75)
 					table.insert(explosions, calvin)
-					logstring = logstring..calvin.r
+					local points = enemies[i].points
+					score = score + points
+					local pp = ParticleObject.new(enemies[i].x + enemies[i].hitw/2, enemies[i].y + enemies[i].hith/2, enemies[i].dx * 0.25, 0, "points")
+					pp.data = points
+					table.insert(particles, pp)
 				else
 					local sound = love.audio.newSource("sounds/deep_hit.wav", 'static')
 					sound:play()
@@ -541,7 +585,7 @@ function update_game(dt)
 				sound_slash:play()
 				enemies[i].health = enemies[i].health - 1
 				carmine.lives = carmine.lives - 1
-				timer_invulnerable = timer_game
+				timer_invulnerable = timer_global
 				return
 			else
 				
@@ -554,7 +598,7 @@ function update_game(dt)
 			if not timer_invulnerable then
 				sound_slash:play()
 				carmine.health = carmine.health - 1
-				timer_invulnerable = timer_game
+				timer_invulnerable = timer_global
 				return
 			else
 				
@@ -562,21 +606,22 @@ function update_game(dt)
 			end
 		end
 	end
-	log1:log(logstring)
 	
 
 	if #enemies < 7 then
 		local rock = Enemy_Rock.new(game_width + 50, math.random(50, game_height - 50), -150, 0)
 		table.insert(enemies, rock)
 	end
+
+	log1:log(logstring)
 end
 
 function update_levelscreen(dt)
 	reset_game()
 	if not timer_levelselect_delay then
-		timer_levelselect_delay = timer_game
+		timer_levelselect_delay = timer_global
 	end
-	if timer_game - timer_levelselect_delay > 2 then
+	if timer_global - timer_levelselect_delay > 2 then
 		mode = 'game'
 		timer_levelselect_delay = nil
 	end
@@ -599,17 +644,16 @@ function update_gameover(dt)
 end
 
 function love.update(dt)
-	timer_game = timer_game + (1 * dt)
+	timer_global = timer_global + (1 * dt)
+	timer_blink = timer_blink + (1 * dt) * 10
 	if mode == 'game' then
 		update_game(dt)
 	elseif mode == 'start' then
-		timer_blink = timer_blink + (1 * dt) * 10
 		update_start(dt)
 	elseif mode == 'gameover' then
 		timer_blink = timer_blink + (1 * dt) * 15
 		update_gameover(dt)
 	elseif mode == 'levelscreen' then
-		timer_blink = timer_blink + (1 * dt) * 10
 		update_levelscreen(dt)
 	end
 end
@@ -654,9 +698,8 @@ end
 
 function draw_explosions()
 	for i = 1, #explosions do
-		print(i)
 		local explosion = explosions[i]
-		if math.sin(timer_game * 50) < 0 then
+		if math.sin(timer_global * 50) < 0 then
 			love.graphics.setColor(1, 1, 1)
 		else
 			love.graphics.setColor(1, 0.2, 0.3)
@@ -666,13 +709,22 @@ function draw_explosions()
 	end
 end
 
+function draw_particles()
+	for i = 1, #particles do
+		local particle = particles[i]
+		love.graphics.setColor(blink(grey_colors))
+		love.graphics.print(particle.data, particle.x, particle.y)
+	end
+	love.graphics.setColor(1, 1, 1)
+end
+
 function draw_player()
 	if not timer_invulnerable then
 		carmine_wings_left_animation:draw(carmine_wings_right_sheet, carmine.x - 45, carmine.y - 35)
 		carmine_body_animation:draw(carmine_body_sheet, carmine.x, carmine.y)
 		carmine_wings_right_animation:draw(carmine_wings_left_sheet, carmine.x - 45, carmine.y - 35)
 	else
-		if math.sin(timer_game * 50) < 0.75 then
+		if math.sin(timer_global * 50) < 0.75 then
 			carmine_wings_left_animation:draw(carmine_wings_right_sheet, carmine.x - 45, carmine.y - 35)
 			carmine_body_animation:draw(carmine_body_sheet, carmine.x, carmine.y)
 			carmine_wings_right_animation:draw(carmine_wings_left_sheet, carmine.x - 45, carmine.y - 35)
@@ -690,12 +742,13 @@ function draw_game()
 	draw_bullets()
 	draw_enemies()
 	draw_explosions()
+	draw_particles()
 
 	-- carmine
 	
 	draw_player()
 	love.graphics.print(carmine.lives, 0, 0)
-	love.graphics.print((window_width / window_scale )+ 200, 0, 10)
+	love.graphics.print(score, 20, 0)
 end
 
 function draw_levelscreen()
@@ -719,13 +772,13 @@ end
 function love.draw()
 	push:start()
 		if timer_invulnerable then
-			love.graphics.print(timer_game - timer_invulnerable, 50, 0)
+			love.graphics.print(timer_global - timer_invulnerable, 50, 0)
 		end
 		
-		love.graphics.print(timer_game, 50, 10)
-		if timer_shot then
-			love.graphics.print(timer_game - timer_shot, 50, 20)
-		end
+		love.graphics.print(timer_global, 50, 10)
+		-- if timer_shot then
+		-- 	love.graphics.print(timer_global - timer_shot, 50, 20)
+		-- end
 		if mode == 'game' then
 			draw_game()
 		elseif mode == 'start' then

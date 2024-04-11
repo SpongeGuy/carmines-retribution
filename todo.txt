@@ -20,14 +20,13 @@ technical todo
 todo
 	make enemy flash when take dmg (hit reactions)
 	have explosion on enemy death
-	make actual ui with health and score values
-	figure out a better way to make the same sound effect play twice (overlapping sounds)
-	use love.timer.getTime() to store timers
-		make an array to store timers
-		this means figuring out a way to merge the same type of timer when created
-		basically have a timer id method
-		or figure out how to use threads
 	on bullet hit, set flag to true
 		if flag is true, draw sprite red
 		after a time, set flag to false
 
+4/10/2024
+	make actual ui with health and score values
+	figure out a better way to make the same sound effect play twice (overlapping sounds)
+	store timers in MoveableObject to make shit easy
+	make it so that enemies are knocked back by explosions
+	make it so that point value of enemies are drawn for a time after enemy death
