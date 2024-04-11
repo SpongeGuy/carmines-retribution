@@ -149,11 +149,11 @@ function ParticleObject:update(dt)
 	end
 end
 
-local CircleObject = {}
-CircleObject.__index = CircleObject
+local ExplosionObject = {}
+ExplosionObject.__index = ExplosionObject
 
-function CircleObject.new(x, y, r, dr, dx, dy)
-	local self = setmetatable({}, CircleObject)
+function ExplosionObject.new(x, y, r, dr, dx, dy)
+	local self = setmetatable({}, ExplosionObject)
 	self.x = x or 0
 	self.y = y or 0
 	self.r = r
@@ -163,7 +163,7 @@ function CircleObject.new(x, y, r, dr, dx, dy)
 	return self
 end
 
-function CircleObject:update(dt)
+function ExplosionObject:update(dt)
 	self.x = (self.x + (self.dx) * dt)
 	self.y = (self.y + (self.dy) * dt)
 	if self.r > 0 then
@@ -175,7 +175,7 @@ function CircleObject:update(dt)
 	end
 end
 
-function CircleObject:draw()
+function ExplosionObject:draw()
 
 end
 
@@ -449,19 +449,37 @@ function update_collection(collection, dt)
 	end
 
 	-- update objects
-	for _, obj in pairs(collection) do
-		if obj then
-			str = str..obj.id..", "
-			obj:update(dt)
-		end
+	for i = 1, #collection do
+		collection[i]:update(dt)
 	end
 
 	str = str.."}"
 	str = #collection
 end
 
+function update_explosions(dt)
+	for i = #explosions, 1, -1 do
+		local explosion = explosions[i]
+		explosion:update(dt)
+		if explosion.r <= 0 then
+			table.remove(explosions, i)
+		end
+	end
+end
+
+function update_particles(dt)
+	for i = #particles, 1, -1 do
+		local particle = particles[i]
+		particle:update(dt)
+		if timer_global - particle.timer > 2 then
+			table.remove(particles, i)
+		end
+	end
+end
+
+
 function update_game(dt)
-	local logstring = ""
+	logstring = ""
 
 	if carmine.lives <= 0 then
 		mode = 'gameover'
@@ -539,36 +557,27 @@ function update_game(dt)
 	update_collection(background, dt)
 	update_collection(enemies, dt)
 	
-	for i = #explosions, 1, -1 do
-		local explosion = explosions[i]
-		explosion:update(dt)
-		if explosion.r <= 0 then
-			table.remove(explosions, i)
-		end
-	end
-	for i = #particles, 1, -1 do
-		local particle = particles[i]
-		particle:update(dt)
-		if timer_global - particle.timer > 2 then
-			table.remove(particles, i)
-		end
-	end
+	update_explosions(dt)
+	update_particles(dt)
+	
 	
 	
 	-- collision effects
-	for i = 1, #enemies do -- friendly bullet collide with enemy
-		for p = 1, #bullets do
+	for i = #enemies, 1, -1 do -- friendly bullet collide with enemy
+		for p = #bullets, 1, -1 do
 			if get_collision(enemies[i], bullets[p]) and bullets[p].friendly then
 				enemies[i].health = enemies[i].health - 1
 				bullets[p].health = bullets[p].health - 1
 				if enemies[i].health <= 0 then
 					local sound = love.audio.newSource("sounds/block_hit.wav", 'static')
 					sound:play()
-					local calvin = CircleObject.new(enemies[i].x + enemies[i].hitw/2, enemies[i].y + enemies[i].hith/2, 50, 200, enemies[i].dx * 0.75, enemies[i].dy * 0.75)
-					table.insert(explosions, calvin)
+
+					local enemy_burst = ExplosionObject.new(enemies[i].x + enemies[i].hitw/2, enemies[i].y + enemies[i].hith/2, 50, 200, enemies[i].dx * 0.75, enemies[i].dy * 0.75)
+					table.insert(explosions, enemy_burst)
+
 					local points = enemies[i].points
 					score = score + points
-					local pp = ParticleObject.new(enemies[i].x + enemies[i].hitw/2, enemies[i].y + enemies[i].hith/2, enemies[i].dx * 0.25, 0, "points")
+					local pp = ParticleObject.new(enemies[i].x + enemies[i].hitw/2, enemies[i].y + enemies[i].hith/2, enemies[i].dx * 0.5, 0, "points")
 					pp.data = points
 					table.insert(particles, pp)
 				else
@@ -576,6 +585,9 @@ function update_game(dt)
 					sound:play()
 				end
 				enemies[i].flash = 0.05
+
+				local bullet_burst = ExplosionObject.new(bullets[p].x + bullets[p].hitw/2, bullets[p].y + bullets[p].hith/2, 30, 200, bullets[p].dx * 0.05, bullets[p].dy * 0.05)
+				table.insert(explosions, bullet_burst)
 				
 			end
 		end
