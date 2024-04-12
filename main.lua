@@ -362,7 +362,7 @@ end
 
 function love.load()
 	love.window.setTitle("CARMINE'S RETRIBUTION")
-	love.window.setIcon(love.image.newImageData("sprites/carmine/carmine_body.png"))
+	love.window.setIcon(love.image.newImageData("sprites/carmine/carmine_icon.png"))
 	mode = 'start'
 
 	-- timers
