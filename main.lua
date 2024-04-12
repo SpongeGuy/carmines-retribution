@@ -139,8 +139,8 @@ function ParticleObject.new(x, y, dx, dy, id)
 end
 
 function ParticleObject:update(dt)
-	self.x = math.floor(self.x + self.dx * dt)
-	self.y = math.floor(self.y + self.dy * dt)
+	self.x = (self.x + self.dx * dt)
+	self.y = (self.y + self.dy * dt)
 	if self.dx > 0 then
 		self.dx = self.dx * (10 * dt)
 	end
@@ -695,7 +695,7 @@ function draw_collection(collection)
 	for _, obj in pairs(collection) do
 		-- if enemy colliding with friendly bullet, set shader
 
-		obj.animation:draw(obj.sheet, obj.x, obj.y)
+		obj.animation:draw(obj.sheet, math.floor(obj.x), math.floor(obj.y))
 	end
 end
 
@@ -706,7 +706,7 @@ function draw_enemies()
 			love.graphics.setShader(shader_flash)
 		end
 
-		enemy.animation:draw(enemy.sheet, enemy.x, enemy.y)
+		enemy.animation:draw(enemy.sheet, math.floor(enemy.x), math.floor(enemy.y))
 		love.graphics.setShader()
 	end
 end
@@ -714,7 +714,7 @@ end
 function draw_bullets()
 	for i = 1, #bullets do
 		local bullet = bullets[i]
-		bullet.animation:draw(bullet.sheet, bullet.x, bullet.y)
+		bullet.animation:draw(bullet.sheet, math.floor(bullet.x), math.floor(bullet.y))
 	end
 end
 
@@ -726,7 +726,7 @@ function draw_explosions()
 		else
 			love.graphics.setColor(1, 0.2, 0.3)
 		end
-		love.graphics.circle("fill", explosion.x, explosion.y, explosion.r)
+		love.graphics.circle("fill", math.floor(explosion.x), math.floor(explosion.y), math.floor(explosion.r))
 		love.graphics.setColor(1, 1, 1)
 	end
 end
@@ -736,7 +736,7 @@ function draw_particles()
 		local particle = particles[i]
 		if particle.id == "points" then
 			love.graphics.setColor(blink(grey_colors))
-			love.graphics.print(particle.data, particle.x, particle.y)
+			love.graphics.print(particle.data, math.floor(particle.x), math.floor(particle.y))
 		end
 	end
 	love.graphics.setColor(1, 1, 1)
@@ -744,18 +744,18 @@ end
 
 function draw_player()
 	if not timer_invulnerable then
-		carmine_wings_left_animation:draw(carmine_wings_right_sheet, carmine.x - 45, carmine.y - 35)
-		carmine_body_animation:draw(carmine_body_sheet, carmine.x, carmine.y)
-		carmine_wings_right_animation:draw(carmine_wings_left_sheet, carmine.x - 45, carmine.y - 35)
+		carmine_wings_left_animation:draw(carmine_wings_right_sheet, math.floor(carmine.x - 45), math.floor(carmine.y - 35))
+		carmine_body_animation:draw(carmine_body_sheet, math.floor(carmine.x), math.floor(carmine.y))
+		carmine_wings_right_animation:draw(carmine_wings_left_sheet, math.floor(carmine.x - 45), math.floor(carmine.y - 35))
 	else
 		if math.sin(timer_global * 50) < 0.75 then
-			carmine_wings_left_animation:draw(carmine_wings_right_sheet, carmine.x - 45, carmine.y - 35)
-			carmine_body_animation:draw(carmine_body_sheet, carmine.x, carmine.y)
-			carmine_wings_right_animation:draw(carmine_wings_left_sheet, carmine.x - 45, carmine.y - 35)
+			carmine_wings_left_animation:draw(carmine_wings_right_sheet, math.floor(carmine.x - 45), math.floor(carmine.y - 35))
+			carmine_body_animation:draw(carmine_body_sheet, math.floor(carmine.x), math.floor(carmine.y))
+			carmine_wings_right_animation:draw(carmine_wings_left_sheet, math.floor(carmine.x - 45), math.floor(carmine.y - 35))
 		end
 	end
 	love.graphics.setColor(1, 1, 1)
-	love.graphics.circle('fill', shot_circ_x, shot_circ_y, shot_circ_r)
+	love.graphics.circle('fill', math.floor(shot_circ_x), math.floor(shot_circ_y), shot_circ_r)
 end
 
 function draw_game()
