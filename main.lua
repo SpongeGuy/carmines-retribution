@@ -348,7 +348,8 @@ Enemy_Gross.__index = Enemy_Gross
 
 setmetatable(Enemy_Gross, {__index = MoveableObject})
 
-function Enemy_Gross.new(x, y, dx, dy)
+function Enemy_Gross.new(x, y, dx, dy, flags)
+	local flags = flags or {}
 	local self = MoveableObject.new(x, y, dx, dy, hitx, hity, hitw, hith, flags)
 	setmetatable(self, Enemy_Gross)
 	self.hitx = x
@@ -361,15 +362,21 @@ function Enemy_Gross.new(x, y, dx, dy)
 	self.id = "gross_guy"
 	self.health = 2
 	self.points = 50
+	self.copies = flags.copies or 5
+	self.copying = flags.copying or true
 	return self
 end
 
 function Enemy_Gross:update(dt)
 	MoveableObject.update(self, dt)
-	logstring = logstring..self.id
-	if self.x < 500 then
-		self.dx = -self.dx / 2
-		self.dy = self.dx / 2
+	if self.copying and self.copies > 1 and (self.x < 925 and self.x > 800) then
+		copy = Enemy_Gross.new(game_width + 20, self.y, self.dx, self.dy, {copies = self.copies - 1})
+		self.copying = false
+		table.insert(enemies, copy)
+	end
+	if self.x < 200 / window_scale then
+		self.dx = -self.dx * 0.707
+		self.dy = self.dx
 	end
 end
 
@@ -492,7 +499,7 @@ function reset_game()
 		table.insert(background, star)
 	end
 
-	guy1 = Enemy_Gross.new(game_width + 50, 200, -150, 0)
+	guy1 = Enemy_Gross.new(game_width + 50, 200, -150, 0, {copies = 7})
 	table.insert(enemies, guy1)
 end
 
@@ -705,10 +712,10 @@ function update_game(dt)
 	end
 	
 
-	if #enemies < 7 then
-		local rock = Enemy_Rock.new(game_width + 50, math.random(50, game_height - 50), -150, 0)
-		table.insert(enemies, rock)
-	end
+	-- if #enemies < 7 then
+	-- 	local rock = Enemy_Rock.new(game_width + 50, math.random(50, game_height - 50), -150, 0)
+	-- 	table.insert(enemies, rock)
+	-- end
 
 	log1:log(logstring)
 end
