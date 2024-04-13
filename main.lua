@@ -330,6 +330,8 @@ setmetatable(Enemy_Rock, {__index = MoveableObject})
 
 function Enemy_Rock.new(x, y, dx, dy)
 	local self = MoveableObject.new(x, y, dx, dy, hitx, hity, hitw, hith, flags)
+	self.dx = dx or -150
+	self.dy = dy or 0
 	self.hitx = x
 	self.hity = y
 	self.hitw = 55
@@ -352,6 +354,8 @@ function Enemy_Gross.new(x, y, dx, dy, flags)
 	local flags = flags or {}
 	local self = MoveableObject.new(x, y, dx, dy, hitx, hity, hitw, hith, flags)
 	setmetatable(self, Enemy_Gross)
+	self.dx = dx or -200
+	self.dy = dy or 0
 	self.hitx = x
 	self.hity = y
 	self.hitw = 55
@@ -364,6 +368,7 @@ function Enemy_Gross.new(x, y, dx, dy, flags)
 	self.points = 50
 	self.copies = flags.copies or 5
 	self.copying = flags.copying or true
+	self.switched = false
 	return self
 end
 
@@ -374,7 +379,8 @@ function Enemy_Gross:update(dt)
 		self.copying = false
 		table.insert(enemies, copy)
 	end
-	if self.x < 100 then
+	if self.x < 100 and not self.switched then
+		self.switched = true
 		self.dx = -self.dx * 0.707
 		self.dy = self.dx
 	end
