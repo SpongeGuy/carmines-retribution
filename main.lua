@@ -25,6 +25,41 @@ local color_black = {0, 0, 0}
 local color_brown = {102, 57, 49}
 local color_yellow = {251, 242, 54}
 
+local colors_DB32 = {
+	{0, 0, 0},
+	{34, 32, 52},
+	{69, 40, 60},
+	{102, 57, 49},
+	{143, 86, 59},
+	{223, 113, 38},
+	{217, 160, 102},
+	{238, 195, 154},
+	{251, 242, 54},
+	{153, 229, 80},
+	{106, 190, 48},
+	{55, 148, 110},
+	{75, 105, 47},
+	{82, 75, 36},
+	{50, 60, 57},
+	{63, 63, 116},
+	{48, 96, 130},
+	{91, 110, 225},
+	{99, 155, 255},
+	{95, 205, 228},
+	{203, 219, 252},
+	{255, 255, 255},
+	{155, 173, 183},
+	{132, 126, 135},
+	{105, 106, 106},
+	{89, 86, 82},
+	{118, 66, 138},
+	{172, 50, 50},
+	{217, 87, 99},
+	{215, 123, 186},
+	{143, 151, 74},
+	{138, 111, 48}
+}
+
 local fire_colors = {color_brightred, color_orange, color_yellow, color_orange}
 local grey_colors = {color_white, color_white, color_white, color_lightgrey, color_grey, color_lightgrey}
 
@@ -307,6 +342,35 @@ function Enemy_Rock.new(x, y, dx, dy)
 	return self
 end
 
+local Enemy_Gross_Guy = {}
+Enemy_Gross_Guy.__index = Enemy_Gross_Guy
+
+setmetatable(Enemy_Gross_Guy, {__index = MoveableObject})
+
+function Enemy_Gross_Guy.new(x, y, dx, dy)
+	local self = MoveableObject.new(x, y, dx, dy, hitx, hity, hitw, hith, flags)
+	self.hitx = x
+	self.hity = y
+	self.hitw = 55
+	self.hith = 36
+	self.sheet = load_image("sprites/gross_guy_sheet.png")
+	self.animation = initialize_animation(self.sheet, 23, 35, '1-5', 0.1)
+	self.friendly = false
+	self.id = "gross_guy"
+	self.health = 2
+	self.points = 50
+	return self
+end
+
+function Enemy_Gross_Guy:update(dt)
+	MoveableObject.update(self, dt)
+	logstring = logstring.."h"
+	if self.x < 500 then
+		self.dx = -self.dx / 2
+		self.dy = self.dx / 2
+	end
+end
+
 local Projectile_Water = {}
 Projectile_Water.__index = Projectile_Water
 
@@ -426,10 +490,8 @@ function reset_game()
 		table.insert(background, star)
 	end
 
-	rock1 = Enemy_Rock.new(game_width + 50, 200, -200, 0)
-	rock2 = Enemy_Rock.new(game_width + 200, 150, -250, 0)
-	table.insert(enemies, rock1)
-	table.insert(enemies, rock2)
+	guy1 = Enemy_Gross_Guy.new(game_width + 50, 200, -150, 0)
+	table.insert(enemies, guy1)
 end
 
 
@@ -445,28 +507,39 @@ end
 -- sets a deletion condition
 -- removes all nil values from a table, moving subsequent values up
 -- if you need to destroy an object, just set it to nil within its collection, garbage collection will take care of it
-function update_collection(collection, dt)
-	local str = "{"
-	-- mark objects for removal
- 	for i = #collection, 1, -1 do
-		local obj = collection[i]
-		if obj then
-			local obj_left_game_area = (obj.x > (window_width / window_scale) + 200 or obj.x < -200) or (obj.y > (window_height / window_scale) + 200 or obj.y < -200)
-			if obj_left_game_area then
-				table.remove(collection, i)
-			elseif obj.health and obj.health <= 0 then
-				table.remove(collection, i)
-			end
+function update_enemies(dt)
+	for i = #enemies, 1, -1 do
+		local enemy = enemies[i]
+		enemy:update(dt)
+		local enemy_left_game_area = (enemy.x > (window_width / window_scale) + 200 or enemy.x < -200) or (enemy.y > (window_height / window_scale) + 200 or enemy.y < -200)
+		local enemy_dead = enemy.health and enemy.health <= 0
+		if enemy_left_game_area or enemy_dead then
+			table.remove(enemies, i)
 		end
 	end
+end
 
-	-- update objects
-	for i = 1, #collection do
-		collection[i]:update(dt)
+function update_bullets(dt)
+	for i = #bullets, 1, -1 do
+		local bullet = bullets[i]
+		bullet:update(dt)
+		local bullet_left_game_area = (bullet.x > (window_width / window_scale) + 200 or bullet.x < -200) or (bullet.y > (window_height / window_scale) + 200 or bullet.y < -200)
+		local bullet_dead = bullet.health and bullet.health <= 0
+		if bullet_left_game_area or bullet_dead then
+			table.remove(bullets, i)
+		end
 	end
+end
 
-	str = str.."}"
-	str = #collection
+function update_background(dt)
+	for i = #background, 1, -1 do
+		local decor = background[i]
+		decor:update(dt)
+		local decor_left_game_area = (decor.x > (window_width / window_scale) + 200 or decor.x < -200) or (decor.y > (window_height / window_scale) + 200 or decor.y < -200)
+		if decor_left_game_area then
+			table.remove(decors, i)
+		end
+	end
 end
 
 function update_explosions(dt)
@@ -565,9 +638,9 @@ function update_game(dt)
 	end
 	
 	-- collection updates
-	update_collection(bullets, dt)
-	update_collection(background, dt)
-	update_collection(enemies, dt)
+	update_bullets(dt)
+	update_background(dt)
+	update_enemies(dt)
 	
 	update_explosions(dt)
 	update_particles(dt)
@@ -630,10 +703,10 @@ function update_game(dt)
 	end
 	
 
-	if #enemies < 7 then
-		local rock = Enemy_Rock.new(game_width + 50, math.random(50, game_height - 50), -150, 0)
-		table.insert(enemies, rock)
-	end
+	-- if #enemies < 7 then
+	-- 	local rock = Enemy_Rock.new(game_width + 50, math.random(50, game_height - 50), -150, 0)
+	-- 	table.insert(enemies, rock)
+	-- end
 
 	log1:log(logstring)
 end
@@ -691,11 +764,10 @@ end
 -- ( (_-. /(__)\  )    (  )__)    )(_) ))   / /(__)\  )    ( 
 --  \___/(__)(__)(_/\/\_)(____)  (____/(_)\_)(__)(__)(__/\__)
 
-function draw_collection(collection)
-	for _, obj in pairs(collection) do
-		-- if enemy colliding with friendly bullet, set shader
-
-		obj.animation:draw(obj.sheet, math.floor(obj.x), math.floor(obj.y))
+function draw_background()
+	for i = 1, #background do
+		local decor = background[i]
+		decor.animation:draw(decor.sheet, math.floor(decor.x), math.floor(decor.y))
 	end
 end
 
@@ -759,20 +831,16 @@ function draw_player()
 end
 
 function draw_game()
-	-- background
-	draw_collection(background)
 
-	-- bullets
+	draw_background()
 	draw_bullets()
 	draw_enemies()
 	draw_explosions()
 	draw_particles()
-
-	-- carmine
-	
 	draw_player()
 	love.graphics.print(carmine.lives, 0, 0)
 	love.graphics.print(score, 20, 0)
+
 end
 
 function draw_levelscreen()
@@ -811,7 +879,7 @@ function love.draw()
 			love.graphics.print(timer_global - timer_invulnerable, 50, 0)
 		end
 		
-		love.graphics.print(timer_global, 50, 10)
+		--love.graphics.print(timer_global, 50, 10)
 		-- if timer_shot then
 		-- 	love.graphics.print(timer_global - timer_shot, 50, 20)
 		-- end
