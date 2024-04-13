@@ -374,7 +374,7 @@ function Enemy_Gross:update(dt)
 		self.copying = false
 		table.insert(enemies, copy)
 	end
-	if self.x < 200 / window_scale then
+	if self.x < 100 then
 		self.dx = -self.dx * 0.707
 		self.dy = self.dx
 	end
