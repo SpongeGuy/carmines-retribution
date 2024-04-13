@@ -350,6 +350,7 @@ setmetatable(Enemy_Gross, {__index = MoveableObject})
 
 function Enemy_Gross.new(x, y, dx, dy)
 	local self = MoveableObject.new(x, y, dx, dy, hitx, hity, hitw, hith, flags)
+	setmetatable(self, Enemy_Gross)
 	self.hitx = x
 	self.hity = y
 	self.hitw = 55
@@ -364,7 +365,7 @@ function Enemy_Gross.new(x, y, dx, dy)
 end
 
 function Enemy_Gross:update(dt)
-	MoveableObject:update(self, dt)
+	MoveableObject.update(self, dt)
 	logstring = logstring..self.id
 	if self.x < 500 then
 		self.dx = -self.dx / 2
