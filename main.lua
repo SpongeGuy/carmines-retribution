@@ -244,6 +244,7 @@ end
 
 function MoveableObject:update(dt)
 	-- update movement
+
 	self.x = self.x + self.dx * dt
 	self.y = self.y + self.dy * dt
 	if self.hitx and self.hity then
@@ -342,12 +343,12 @@ function Enemy_Rock.new(x, y, dx, dy)
 	return self
 end
 
-local Enemy_Gross_Guy = {}
-Enemy_Gross_Guy.__index = Enemy_Gross_Guy
+local Enemy_Gross = {}
+Enemy_Gross.__index = Enemy_Gross
 
-setmetatable(Enemy_Gross_Guy, {__index = MoveableObject})
+setmetatable(Enemy_Gross, {__index = MoveableObject})
 
-function Enemy_Gross_Guy.new(x, y, dx, dy)
+function Enemy_Gross.new(x, y, dx, dy)
 	local self = MoveableObject.new(x, y, dx, dy, hitx, hity, hitw, hith, flags)
 	self.hitx = x
 	self.hity = y
@@ -362,9 +363,9 @@ function Enemy_Gross_Guy.new(x, y, dx, dy)
 	return self
 end
 
-function Enemy_Gross_Guy:update(dt)
-	MoveableObject.update(self, dt)
-	logstring = logstring.."h"
+function Enemy_Gross:update(dt)
+	MoveableObject:update(self, dt)
+	logstring = logstring..self.id
 	if self.x < 500 then
 		self.dx = -self.dx / 2
 		self.dy = self.dx / 2
@@ -490,7 +491,7 @@ function reset_game()
 		table.insert(background, star)
 	end
 
-	guy1 = Enemy_Gross_Guy.new(game_width + 50, 200, -150, 0)
+	guy1 = Enemy_Gross.new(game_width + 50, 200, -150, 0)
 	table.insert(enemies, guy1)
 end
 
@@ -703,10 +704,10 @@ function update_game(dt)
 	end
 	
 
-	-- if #enemies < 7 then
-	-- 	local rock = Enemy_Rock.new(game_width + 50, math.random(50, game_height - 50), -150, 0)
-	-- 	table.insert(enemies, rock)
-	-- end
+	if #enemies < 7 then
+		local rock = Enemy_Rock.new(game_width + 50, math.random(50, game_height - 50), -150, 0)
+		table.insert(enemies, rock)
+	end
 
 	log1:log(logstring)
 end
