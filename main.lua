@@ -364,6 +364,7 @@ function Enemy_Gross.new(x, y, dx, dy, flags)
 	self.points = 50
 	self.copies = flags.copies or 5
 	self.copying = flags.copying or true
+	self.switched = false
 	return self
 end
 
@@ -374,7 +375,8 @@ function Enemy_Gross:update(dt)
 		self.copying = false
 		table.insert(enemies, copy)
 	end
-	if self.x < 100 then
+	if self.x < 100 and not self.switched then
+		self.switched = true
 		self.dx = -self.dx * 0.707
 		self.dy = self.dx
 	end
@@ -659,7 +661,7 @@ function update_game(dt)
 	-- collision effects
 	for i = #enemies, 1, -1 do -- friendly bullet collide with enemy
 		for p = #bullets, 1, -1 do
-			if get_collision(enemies[i], bullets[p]) and bullets[p].friendly then
+			if bullets[p].friendly and not enemies[i].friendly and get_collision(enemies[i], bullets[p]) then
 				enemies[i].health = enemies[i].health - 1
 				bullets[p].health = bullets[p].health - 1
 				if enemies[i].health <= 0 then
@@ -677,7 +679,7 @@ function update_game(dt)
 		end
 	end
 	for i = 1, #enemies do -- enemy collide with player
-		if get_collision(carmine, enemies[i]) then
+		if not enemies[i].friendly and get_collision(carmine, enemies[i]) then
 			if not timer_invulnerable then
 				sound_slash:play()
 				enemies[i].health = enemies[i].health - 1
@@ -842,8 +844,8 @@ end
 function draw_game()
 
 	draw_background()
-	draw_bullets()
 	draw_enemies()
+	draw_bullets()
 	draw_explosions()
 	draw_particles()
 	draw_player()
