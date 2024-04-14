@@ -302,7 +302,31 @@ function MoveableObject:control(speed, left, right, up, down)
 	end
 end
 
--- define enemy types
+-- define specific object types
+
+local Graphic_Heart = {}
+Graphic_Heart.__index = Graphic_Heart
+
+setmetatable(Graphic_Heart, {__index = ParticleObject})
+
+function Graphic_Heart.new(x, y, dx, dy)
+	local self = ParticleObject.new(x, y, dx, dy, id)
+	setmetatable(self, Graphic_Heart)
+	self.id = "heart_graphic"
+	self.sheet = load_image("sprites/heart/heart_sheet.png")
+	self.animation = initialize_animation(self.sheet, 16, 16, '1-2', 1)
+	self.full = true
+	return self
+end
+
+function Graphic_Heart:update(dt)
+	self.animation:update(dt)
+	if self.full then
+		self.animation:gotoFrame(1)
+	else
+		self.animation:gotoFrame(2)
+	end
+end
 
 local Player = {}
 Player.__index = Player
@@ -465,6 +489,7 @@ function reset_game()
 	enemies = {}
 	explosions = {}
 	particles = {}
+	hearts = {}
 	score = 0
 
 	
@@ -473,11 +498,16 @@ function reset_game()
 	shot_circ_x = 0
 	shot_circ_y = 0
 
+	-- hearts
+	table.insert(hearts, Graphic_Heart.new(0, 0, 0, 0))
+	table.insert(hearts, Graphic_Heart.new(20, 0, 0, 0))
+	table.insert(hearts, Graphic_Heart.new(40, 0, 0, 0))
+
 	
 	-- carmine
 	carmine = MoveableObject.new(100, 200, 0, 0, 114, 208, 14, 7)
 	carmine.id = "carmine"
-	carmine.lives = 3
+	carmine.health = 3
 
 	local g
 	carmine_body_sheet = load_image('sprites/carmine/carmine_body_sheet.png')
@@ -542,6 +572,19 @@ function update_bullets(dt)
 	end
 end
 
+function update_hearts(dt)
+	-- my balls are in agony :((
+	for i = #hearts, 1, -1 do
+		hearts[i].full = false
+	end
+	for i = 1, 3 do
+		if i <= carmine.health then
+			hearts[i].full = true
+		end
+		hearts[i]:update(dt)
+	end
+end
+
 function update_background(dt)
 	for i = #background, 1, -1 do
 		local decor = background[i]
@@ -577,7 +620,7 @@ end
 function update_game(dt)
 	logstring = ""
 
-	if carmine.lives <= 0 then
+	if carmine.health <= 0 then
 		mode = 'gameover'
 		reset_game()
 	end
@@ -655,6 +698,7 @@ function update_game(dt)
 	
 	update_explosions(dt)
 	update_particles(dt)
+	update_hearts(dt)
 	
 	
 	
@@ -683,7 +727,7 @@ function update_game(dt)
 			if not timer_invulnerable then
 				sound_slash:play()
 				enemies[i].health = enemies[i].health - 1
-				carmine.lives = carmine.lives - 1
+				carmine.health = carmine.health - 1
 				if enemies[i].health <= 0 then
 					death_effect_explode(enemies[i])
 				else
@@ -794,6 +838,13 @@ function draw_enemies()
 	end
 end
 
+function draw_hearts()
+	for i = 1, #hearts do
+		local heart = hearts[i]
+		heart.animation:draw(heart.sheet, math.floor(heart.x), math.floor(heart.y))
+	end
+end
+
 function draw_bullets()
 	for i = 1, #bullets do
 		local bullet = bullets[i]
@@ -849,8 +900,8 @@ function draw_game()
 	draw_explosions()
 	draw_particles()
 	draw_player()
-	love.graphics.print(carmine.lives, 0, 0)
-	love.graphics.print(score, 20, 0)
+	draw_hearts()
+	love.graphics.print(score, 80, 0)
 
 end
 
@@ -886,14 +937,6 @@ end
 
 function love.draw()
 	push:start()
-		if timer_invulnerable then
-			love.graphics.print(timer_global - timer_invulnerable, 50, 0)
-		end
-		
-		--love.graphics.print(timer_global, 50, 10)
-		-- if timer_shot then
-		-- 	love.graphics.print(timer_global - timer_shot, 50, 20)
-		-- end
 		if mode == 'game' then
 			draw_game()
 		elseif mode == 'start' then
