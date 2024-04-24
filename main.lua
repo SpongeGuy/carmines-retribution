@@ -159,7 +159,7 @@ function ParticleObject.new(x, y, dx, dy, id)
 	self.id = id or nil
 	self.data = nil
 	self.timer = timer_global
-	self.seed = math.random(-1, 1)
+	self.seed = math.random() * 0.2
 	return self
 end
 
@@ -365,8 +365,8 @@ function Enemy_Gross.new(x, y, dx, dy, flags)
 	setmetatable(self, Enemy_Gross)
 	self.hitx = x
 	self.hity = y
-	self.hitw = 55
-	self.hith = 36
+	self.hitw = 23
+	self.hith = 35
 	self.sheet = load_image("sprites/gross_guy_sheet.png")
 	self.animation = initialize_animation(self.sheet, 23, 35, '1-5', 0.1)
 	self.friendly = false
@@ -453,8 +453,8 @@ function death_effect_explode(enemy)
 	pp.data = points
 	table.insert(particles, pp)
 
-	for p  = 1, 50 do
-		explode(pointX, pointY, math.random(-100, 100) * 0.707, math.random(-100, 100) * 0.707)
+	for p  = 1, 25 do
+		explode(pointX, pointY, math.random(-150, 150) + enemy.dx, math.random(-150, 150) + enemy.dy)
 	end
 end
 
@@ -462,7 +462,7 @@ end
 function explode(x, y, dx, dy)
 	local myp = ParticleObject.new(x, y, dx, dy, "explosion")
 	myp.radius = math.floor(math.random(4, 8))
-	myp.timer = myp.timer - math.random(0, 1)
+	myp.timer = myp.timer + myp.seed
 	table.insert(particles, myp)
 end
 
@@ -632,7 +632,7 @@ function update_particles(dt)
 	for i = #particles, 1, -1 do
 		local particle = particles[i]
 		particle:update(dt)
-		if timer_global - particle.timer > 1 + particle.seed then
+		if timer_global - particle.timer > 2 + particle.seed then
 			table.remove(particles, i)
 		end
 	end
@@ -854,7 +854,6 @@ function draw_enemies()
 		if enemy.flash > 0 then
 			love.graphics.setShader(shader_flash)
 		end
-
 		enemy.animation:draw(enemy.sheet, math.floor(enemy.x), math.floor(enemy.y))
 		love.graphics.setShader()
 	end
@@ -897,15 +896,18 @@ function draw_particles()
 			love.graphics.print(particle.data, math.floor(particle.x), math.floor(particle.y))
 			set_draw_color(22)
 		elseif particle.id == "explosion" then
-			if timer_global - particle.timer < 0.2 then
+			local time_elapsed = timer_global - particle.timer
+			if time_elapsed < 0.2 then
 				set_draw_color(22)
-			elseif timer_global - particle.timer > 0.6 then
+			elseif time_elapsed > 0.7 then
 				set_draw_color(25)
-			elseif timer_global - particle.timer > 0.4 then
+			elseif time_elapsed > 0.6 then
+				set_draw_color(4)
+			elseif time_elapsed > 0.4 then
 				set_draw_color(28)
-			elseif timer_global - particle.timer > 0.3 then
+			elseif time_elapsed > 0.3 then
 				set_draw_color(6)
-			elseif timer_global - particle.timer > 0.1 then
+			elseif time_elapsed > 0.2 then
 				set_draw_color(9)
 			end
 			love.graphics.circle('fill', math.floor(particle.x), math.floor(particle.y), particle.radius)
