@@ -67,9 +67,6 @@ local grey_colors = {color_white, color_white, color_white, color_lightgrey, col
 -- shader effects
 
 
-
-
-
 --  __  __  ____  ____  __    ____  ____  ____  ____  ___ 
 -- (  )(  )(_  _)(_  _)(  )  (_  _)(_  _)(_  _)( ___)/ __)
 --  )(__)(   )(   _)(_  )(__  _)(_   )(   _)(_  )__) \__ \
@@ -136,18 +133,10 @@ function load_image(path)
 end
 
 
--- USED TO ALTERNATE COLORS FOR TEXT OR OTHER SHIT
--- WARNING: THIS DOESN'T START THE BLINK TIMER
-function blink(colors)
-	if not colors then
-		return love.math.colorFromBytes(color_white[1], color_white[2], color_white[3])
-	end
-	if timer_blink > #colors + 1 then
-		timer_blink = 1
-	end
-	local i = math.floor(timer_blink)
-	return love.math.colorFromBytes(colors[i][1], colors[i][2], colors[i][3])
-end
+
+
+
+
 
 
 
@@ -176,12 +165,6 @@ end
 function ParticleObject:update(dt)
 	self.x = (self.x + self.dx * dt)
 	self.y = (self.y + self.dy * dt)
-	if self.dx > 0 then
-		self.dx = self.dx * (10 * dt)
-	end
-	if self.dy > 0 then
-
-	end
 end
 
 local ExplosionObject = {}
@@ -426,6 +409,25 @@ function Projectile_Water.new(x, y, dx, dy, friendly)
 	return self
 end
 
+
+--  ___  ____  ____  ___  ____    __    __   
+-- / __)(  _ \( ___)/ __)(_  _)  /__\  (  )  
+-- \__ \ )___/ )__)( (__  _)(_  /(__)\  )(__ 
+-- (___/(__)  (____)\___)(____)(__)(__)(____)
+
+-- USED TO ALTERNATE COLORS FOR TEXT OR OTHER SHIT
+-- WARNING: THIS DOESN'T START THE BLINK TIMER
+function blink(colors)
+	if not colors then
+		return love.math.colorFromBytes(color_white[1], color_white[2], color_white[3])
+	end
+	if timer_blink > #colors + 1 then
+		timer_blink = 1
+	end
+	local i = math.floor(timer_blink)
+	return love.math.colorFromBytes(colors[i][1], colors[i][2], colors[i][3])
+end
+
 function death_effect_explode(enemy)
 	local sound = love.audio.newSource("sounds/block_hit.wav", 'static')
 	sound:play()
@@ -435,13 +437,21 @@ function death_effect_explode(enemy)
 
 	local points = enemy.points
 	score = score + points
-	local pp = ParticleObject.new(enemy.x + enemy.hitw/2, enemy.y + enemy.hith/2, -50, 0, "points")
+	local pp = ParticleObject.new(enemy.x + enemy.hitw/2, enemy.y + enemy.hith/2, enemy.dx / 2.5, math.random(-25, 25), "points")
 	pp.data = points
 	table.insert(particles, pp)
+
+	for p  = 1, 15 do
+		explode(enemy.x, enemy.y, math.random(-250, 250), math.random(-250, 250))
+	end
 end
 
-
-
+-- MAKES AN EXPLOSION AT A COORDINATE
+function explode(x, y, dx, dy)
+	local myp = ParticleObject.new(x, y, dx, dy, "explosion")
+	myp.timer = myp.timer + math.random(0, 2)
+	table.insert(particles, myp)
+end
 
 
 
@@ -502,7 +512,6 @@ function reset_game()
 	table.insert(hearts, Graphic_Heart.new(0, 0, 0, 0))
 	table.insert(hearts, Graphic_Heart.new(20, 0, 0, 0))
 	table.insert(hearts, Graphic_Heart.new(40, 0, 0, 0))
-
 	
 	-- carmine
 	carmine = MoveableObject.new(100, 200, 0, 0, 114, 208, 14, 7)
@@ -871,6 +880,9 @@ function draw_particles()
 		if particle.id == "points" then
 			love.graphics.setColor(blink(grey_colors))
 			love.graphics.print(particle.data, math.floor(particle.x), math.floor(particle.y))
+			love.graphics.setColor(1, 1, 1)
+		elseif particle.id == "explosion" then
+			love.graphics.circle('fill', math.floor(particle.x), math.floor(particle.y), 5)
 		end
 	end
 	love.graphics.setColor(1, 1, 1)
