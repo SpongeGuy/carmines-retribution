@@ -159,12 +159,16 @@ function ParticleObject.new(x, y, dx, dy, id)
 	self.id = id or nil
 	self.data = nil
 	self.timer = timer_global
+	self.seed = math.random(-1, 1)
 	return self
 end
 
 function ParticleObject:update(dt)
 	self.x = (self.x + self.dx * dt)
 	self.y = (self.y + self.dy * dt)
+	if self.id == "explosion" and self.radius then
+		self.radius = self.radius - 1 * dt
+	end
 end
 
 local ExplosionObject = {}
@@ -419,37 +423,46 @@ end
 -- WARNING: THIS DOESN'T START THE BLINK TIMER
 function blink(colors)
 	if not colors then
-		return love.math.colorFromBytes(color_white[1], color_white[2], color_white[3])
+		return {255, 255, 255}
 	end
 	if timer_blink > #colors + 1 then
 		timer_blink = 1
 	end
 	local i = math.floor(timer_blink)
-	return love.math.colorFromBytes(colors[i][1], colors[i][2], colors[i][3])
+	return colors[i]
+end
+
+function set_draw_color(num)
+	local r, g, b = love.math.colorFromBytes(colors_DB32[num][1], colors_DB32[num][2], colors_DB32[num][3])
+	love.graphics.setColor(r, g, b)
 end
 
 function death_effect_explode(enemy)
 	local sound = love.audio.newSource("sounds/block_hit.wav", 'static')
 	sound:play()
 
-	local enemy_burst = ExplosionObject.new(enemy.x + enemy.hitw/2, enemy.y + enemy.hith/2, 50, 200, enemy.dx * 0.75, enemy.dy * 0.75)
+	local pointX = enemy.x + enemy.hitw/2
+	local pointY = enemy.y + enemy.hith/2
+
+	local enemy_burst = ExplosionObject.new(pointX, pointY, 50, 200, enemy.dx * 0.75, enemy.dy * 0.75)
 	table.insert(explosions, enemy_burst)
 
 	local points = enemy.points
 	score = score + points
-	local pp = ParticleObject.new(enemy.x + enemy.hitw/2, enemy.y + enemy.hith/2, enemy.dx / 2.5, math.random(-25, 25), "points")
+	local pp = ParticleObject.new(pointX, pointY, enemy.dx / 2.5, math.random(-25, 25), "points")
 	pp.data = points
 	table.insert(particles, pp)
 
-	for p  = 1, 15 do
-		explode(enemy.x, enemy.y, math.random(-250, 250), math.random(-250, 250))
+	for p  = 1, 50 do
+		explode(pointX, pointY, math.random(-100, 100) * 0.707, math.random(-100, 100) * 0.707)
 	end
 end
 
 -- MAKES AN EXPLOSION AT A COORDINATE
 function explode(x, y, dx, dy)
 	local myp = ParticleObject.new(x, y, dx, dy, "explosion")
-	myp.timer = myp.timer + math.random(0, 2)
+	myp.radius = math.floor(math.random(4, 8))
+	myp.timer = myp.timer - math.random(0, 1)
 	table.insert(particles, myp)
 end
 
@@ -619,7 +632,7 @@ function update_particles(dt)
 	for i = #particles, 1, -1 do
 		local particle = particles[i]
 		particle:update(dt)
-		if timer_global - particle.timer > 2 then
+		if timer_global - particle.timer > 1 + particle.seed then
 			table.remove(particles, i)
 		end
 	end
@@ -864,13 +877,15 @@ end
 function draw_explosions()
 	for i = 1, #explosions do
 		local explosion = explosions[i]
-		if math.sin(timer_global * 50) < 0 then
-			love.graphics.setColor(1, 1, 1)
+		if math.sin(timer_global * 50) < 0.33 then
+			set_draw_color(22)
+		elseif math.sin(timer_global * 50) > -0.1 then
+			set_draw_color(6)
 		else
-			love.graphics.setColor(1, 0.2, 0.3)
+			set_draw_color(28)
 		end
 		love.graphics.circle("fill", math.floor(explosion.x), math.floor(explosion.y), math.floor(explosion.r))
-		love.graphics.setColor(1, 1, 1)
+		set_draw_color(22)
 	end
 end
 
@@ -878,14 +893,25 @@ function draw_particles()
 	for i = 1, #particles do
 		local particle = particles[i]
 		if particle.id == "points" then
-			love.graphics.setColor(blink(grey_colors))
+			set_draw_color(blink({21, 22, 23, 24}))
 			love.graphics.print(particle.data, math.floor(particle.x), math.floor(particle.y))
-			love.graphics.setColor(1, 1, 1)
+			set_draw_color(22)
 		elseif particle.id == "explosion" then
-			love.graphics.circle('fill', math.floor(particle.x), math.floor(particle.y), 5)
+			if timer_global - particle.timer < 0.2 then
+				set_draw_color(22)
+			elseif timer_global - particle.timer > 0.6 then
+				set_draw_color(25)
+			elseif timer_global - particle.timer > 0.4 then
+				set_draw_color(28)
+			elseif timer_global - particle.timer > 0.3 then
+				set_draw_color(6)
+			elseif timer_global - particle.timer > 0.1 then
+				set_draw_color(9)
+			end
+			love.graphics.circle('fill', math.floor(particle.x), math.floor(particle.y), particle.radius)
 		end
 	end
-	love.graphics.setColor(1, 1, 1)
+	set_draw_color(22)
 end
 
 function draw_player()
@@ -900,7 +926,7 @@ function draw_player()
 			carmine_wings_right_animation:draw(carmine_wings_left_sheet, math.floor(carmine.x - 45), math.floor(carmine.y - 35))
 		end
 	end
-	love.graphics.setColor(1, 1, 1)
+	set_draw_color(22)
 	love.graphics.circle('fill', math.floor(shot_circ_x), math.floor(shot_circ_y), shot_circ_r)
 end
 
@@ -918,7 +944,7 @@ function draw_game()
 end
 
 function draw_levelscreen()
-	love.graphics.setColor(blink(grey_colors))
+	set_draw_color(blink({21, 22, 23, 24}))
 	local text1 = "LEVEL 1"
 	local text2 = "OUTER SPACER"
 	love.graphics.print(text1, center_text(text1), (game_height / 2) - 60)
@@ -932,7 +958,7 @@ function center_text(text)
 end
 
 function draw_start()
-	love.graphics.setColor(blink(grey_colors))
+	set_draw_color(blink({21, 22, 22, 22, 23, 24}))
 	local text1 = "CARMINE'S RETRIBUTION"
 	local text2 = "PRESS ANY KEY TO START"
 	love.graphics.print(text1, center_text(text1), (game_height / 2) - 60)
@@ -940,7 +966,7 @@ function draw_start()
 end
 
 function draw_gameover()
-	love.graphics.setColor(blink(fire_colors))
+	set_draw_color(blink({9, 6, 28}))
 	local text1 = "YOU SUCK"
 	local text2 = "NOT WORTHY OF CARMINE"
 	love.graphics.print(text1, (game_width / 2) - math.floor(font_consolas:getWidth(text1) / 2.2), (game_height / 2) - 60)
