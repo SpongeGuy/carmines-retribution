@@ -171,33 +171,6 @@ end
 local ExplosionObject = {}
 ExplosionObject.__index = ExplosionObject
 
-function ExplosionObject.new(x, y, r, dr, dx, dy)
-	local self = setmetatable({}, ExplosionObject)
-	self.x = x or 0
-	self.y = y or 0
-	self.r = r
-	self.dr = dr or 0
-	self.dx = dx or 0
-	self.dy = dy or 0
-	return self
-end
-
-function ExplosionObject:update(dt)
-	self.x = (self.x + (self.dx) * dt)
-	self.y = (self.y + (self.dy) * dt)
-	if self.r > 0 then
-		self.r = self.r - self.dr * dt
-		self.dr = self.dr - 1
-	end
-	if self.r < 0 then
-		self.r = 0
-	end
-end
-
-function ExplosionObject:draw()
-
-end
-
 local MoveableObject = {}
 MoveableObject.__index = MoveableObject
 
@@ -489,19 +462,18 @@ function death_effect_burst(enemy)
 	local pointX = enemy.x + enemy.hitw/2
 	local pointY = enemy.y + enemy.hith/2
 
-	local enemy_burst = ExplosionObject.new(pointX, pointY, 50, 200, enemy.dx * 0.75, enemy.dy * 0.75)
-	table.insert(explosions, enemy_burst)
+	burst(pointX, pointY, enemy.dx * 0.75, enemy.dy * 0.75)
 end
 
 function shockwave(x, y, dx, dy)
 	local myp = ParticleObject.new(x, y, dx, dy, "shockwave")
-	myp.radius = 1
+	myp.r = 1
 	myp.alpha = 0.2
 	myp.dr = 400--* math.random() * 1.5
 	function myp:update(dt)
 		self.x = (self.x + self.dx * dt)
 		self.y = (self.y + self.dy * dt)
-		self.radius = (self.radius + self.dr * dt)
+		self.r = (self.r + self.dr * dt)
 		local decrease_rate = 3.5
 		local decrease_per_frame = decrease_rate / love.timer.getFPS()
 		self.dr = self.dr * (1 - decrease_per_frame)
@@ -509,6 +481,24 @@ function shockwave(x, y, dx, dy)
 	end
 	myp.timer = myp.timer + myp.seed - 0.5
 	table.insert(particles, myp)
+end
+
+function burst(x, y, dx, dy)
+	local myp = ParticleObject.new(x, y, dx, dy)
+	myp.r = 30
+	myp.dr = 200
+	function myp:update(dt)
+		self.x = (self.x + (self.dx) * dt)
+		self.y = (self.y + (self.dy) * dt)
+		if self.r > 0 then
+			self.r = self.r - self.dr * dt
+			self.dr = self.dr - 1
+		end
+		if self.r < 0 then
+			self.r = 0
+		end
+	end
+	table.insert(explosions, myp)
 end
 
 -- MAKES AN EXPLOSION AT A COORDINATE
@@ -519,11 +509,11 @@ function explode(x, y, dx, dy)
 		self.y = (self.y + self.dy * dt)
 		local decrease_rate = 2.5
 		local decrease_per_frame = decrease_rate / love.timer.getFPS()
-		self.radius = self.radius - 1 * dt
+		self.r = self.r - 1 * dt
 		self.dx = self.dx * (1 - decrease_per_frame)
 		self.dy = self.dy * (1 - decrease_per_frame)
 	end
-	myp.radius = math.floor(math.random(4, 8))
+	myp.r = math.floor(math.random(4, 8))
 	myp.timer = myp.timer + myp.seed
 	table.insert(particles, myp)
 end
@@ -567,6 +557,58 @@ function love.load()
 	]]
 end
 
+function load_player()
+	-- carmine
+	carmine = MoveableObject.new(100, 200, 0, 0, 114, 208, 14, 7)
+	carmine.id = "carmine"
+	carmine.health = 3
+	carmine.attack_speed = 0.25
+	function carmine:shoot(dt)
+		-- shot burst data
+		shot_circ_x = carmine.x + 30
+		shot_circ_y = carmine.y + 10
+		if shot_circ_r > 0 then
+			shot_circ_r = shot_circ_r - 180 * dt
+		end
+		if shot_circ_r < 0 then shot_circ_r = 0 end
+
+		-- water drop
+		if love.keyboard.isDown('space') and not timer_shot then
+			local water = Projectile_Water.new(math.floor(carmine.x + 10), math.floor(carmine.y), 550, 0, true)
+			timer_shot = timer_global
+			--timer_secondshot = timer_global
+			local sound = love.audio.newSource("sounds/ball_shot.wav", 'static')
+			sound:play()
+			key_space_pressed = true
+			
+			table.insert(bullets, water)
+			shot_circ_r = 25
+		end
+
+		if timer_secondshot and timer_global - timer_secondshot > 0.1 then
+			local water = Projectile_Water.new(math.floor(carmine.x + 10), math.floor(carmine.y), 550, 0, true)
+			table.insert(bullets, water)
+			timer_secondshot = nilv 
+			local sound = love.audio.newSource("sounds/ball_shot.wav", 'static')
+			sound:play()
+			shot_circ_r = 20
+		end
+	end
+
+	local g
+	carmine_body_sheet = load_image('sprites/carmine/carmine_body_sheet.png')
+	g = anim8.newGrid(35, 23, carmine_body_sheet:getWidth(), carmine_body_sheet:getHeight())
+	carmine_body_animation = anim8.newAnimation(g('1-3', 1), 0.1)
+
+	carmine_wings_left_sheet = load_image('sprites/wings/carmine_wings_left_sheet.png')
+	g = anim8.newGrid(100, 100, carmine_wings_left_sheet:getWidth(), carmine_wings_left_sheet:getHeight())
+	carmine_wings_left_animation = anim8.newAnimation(g('1-4', 1), 0.1)
+
+	carmine_wings_right_sheet = load_image('sprites/wings/carmine_wings_right_sheet.png')
+	g = anim8.newGrid(100, 100, carmine_wings_right_sheet:getWidth(), carmine_wings_right_sheet:getHeight())
+	carmine_wings_right_animation = anim8.newAnimation(g('1-4', 1), 0.1)
+end
+
 function reset_game()
 	-- init variables
 	bullets = {}
@@ -593,23 +635,7 @@ function reset_game()
 	table.insert(hearts, Graphic_Heart.new(20, 0, 0, 0))
 	table.insert(hearts, Graphic_Heart.new(40, 0, 0, 0))
 	
-	-- carmine
-	carmine = MoveableObject.new(100, 200, 0, 0, 114, 208, 14, 7)
-	carmine.id = "carmine"
-	carmine.health = 3
-
-	local g
-	carmine_body_sheet = load_image('sprites/carmine/carmine_body_sheet.png')
-	g = anim8.newGrid(35, 23, carmine_body_sheet:getWidth(), carmine_body_sheet:getHeight())
-	carmine_body_animation = anim8.newAnimation(g('1-3', 1), 0.1)
-
-	carmine_wings_left_sheet = load_image('sprites/wings/carmine_wings_left_sheet.png')
-	g = anim8.newGrid(100, 100, carmine_wings_left_sheet:getWidth(), carmine_wings_left_sheet:getHeight())
-	carmine_wings_left_animation = anim8.newAnimation(g('1-4', 1), 0.1)
-
-	carmine_wings_right_sheet = load_image('sprites/wings/carmine_wings_right_sheet.png')
-	g = anim8.newGrid(100, 100, carmine_wings_right_sheet:getWidth(), carmine_wings_right_sheet:getHeight())
-	carmine_wings_right_animation = anim8.newAnimation(g('1-4', 1), 0.1)
+	load_player()
 
 	-- stars
 	for i = 1, 300 do
@@ -721,34 +747,7 @@ function update_player(dt)
 		carmine_body_animation:gotoFrame(2)
 	end
 
-	-- shot burst data
-	shot_circ_x = carmine.x + 30
-	shot_circ_y = carmine.y + 10
-	if shot_circ_r > 0 then
-		shot_circ_r = shot_circ_r - 180 * dt
-	end
-	if shot_circ_r < 0 then shot_circ_r = 0 end
-
-	-- water drop
-	if love.keyboard.isDown('space') and not timer_shot then
-		timer_shot = timer_global
-		timer_secondshot = timer_global
-		local sound = love.audio.newSource("sounds/ball_shot.wav", 'static')
-		sound:play()
-		key_space_pressed = true
-		local water = Projectile_Water.new(math.floor(carmine.x + 10), math.floor(carmine.y), 550, 0, true)
-		table.insert(bullets, water)
-		shot_circ_r = 25
-	end
-
-	if timer_secondshot and timer_global - timer_secondshot > 0.1 then
-		local water = Projectile_Water.new(math.floor(carmine.x + 10), math.floor(carmine.y), 550, 0, true)
-		table.insert(bullets, water)
-		timer_secondshot = nilv 
-		local sound = love.audio.newSource("sounds/ball_shot.wav", 'static')
-		sound:play()
-		shot_circ_r = 20
-	end
+	
 
 	if love.keyboard.isDown('c') then
 		for p = 1, #bullets do
@@ -778,7 +777,7 @@ function update_game(dt)
 		timer_invulnerable = nil
 	end
 	-- shot timer
-	if timer_shot and timer_global - timer_shot > 0.4 then
+	if timer_shot and timer_global - timer_shot > carmine.attack_speed then
 		timer_shot = nil
 	end
 
@@ -786,6 +785,7 @@ function update_game(dt)
 	
 	
 	-- collection updates
+	carmine:shoot(dt)
 	update_bullets(dt)
 	update_background(dt)
 	update_enemies(dt)
@@ -809,9 +809,8 @@ function update_game(dt)
 
 				enemies[i].flash = 0.05
 
-				local bullet_burst = ExplosionObject.new(bullets[p].x + bullets[p].hitw/2, bullets[p].y + bullets[p].hith/2, 30, 200, bullets[p].dx * 0.05, bullets[p].dy * 0.05)
-				table.insert(explosions, bullet_burst)
-				
+				-- local bullet_burst = ExplosionObject.new(bullets[p].x + bullets[p].hitw/2, bullets[p].y + bullets[p].hith/2, 30, 200, bullets[p].dx * 0.05, bullets[p].dy * 0.05)
+				burst(bullets[p].x + bullets[p].hitw/2, bullets[p].y + bullets[p].hith/2, bullets[p].dx * 0.05, bullets[p].dy * 0.05)
 			end
 		end
 	end
@@ -979,10 +978,10 @@ function draw_particles()
 			elseif time_elapsed > 0.1 then
 				set_draw_color(9)
 			end
-			love.graphics.circle('fill', math.floor(particle.x), math.floor(particle.y), particle.radius)
+			love.graphics.circle('fill', math.floor(particle.x), math.floor(particle.y), particle.r)
 		elseif particle.id == "shockwave" then
 			love.graphics.setColor(1, 1, 1, particle.alpha)
-			love.graphics.circle('line', math.floor(particle.x), math.floor(particle.y), particle.radius)
+			love.graphics.circle('line', math.floor(particle.x), math.floor(particle.y), particle.r)
 		end
 	end
 	set_draw_color(22)
