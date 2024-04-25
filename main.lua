@@ -167,7 +167,11 @@ function ParticleObject:update(dt)
 	self.x = (self.x + self.dx * dt)
 	self.y = (self.y + self.dy * dt)
 	if self.id == "explosion" and self.radius then
+		local decrease_rate = 2.5
+		local decrease_per_frame = decrease_rate / love.timer.getFPS()
 		self.radius = self.radius - 1 * dt
+		self.dx = self.dx * (1 - decrease_per_frame)
+		self.dy = self.dy * (1 - decrease_per_frame)
 	end
 end
 
@@ -271,16 +275,16 @@ end
 function MoveableObject:control(speed, left, right, up, down)
 	self.dx = 0
 	self.dy = 0
-	if love.keyboard.isDown(left) then
+	if love.keyboard.isDown(left) and self.x > 0 then
 		self.dx = -speed
 	end
-	if love.keyboard.isDown(right) then
+	if love.keyboard.isDown(right) and self.x < game_width - 35 then
 		self.dx = speed
 	end
-	if love.keyboard.isDown(up) then
+	if love.keyboard.isDown(up) and self.y > 0 then
 		self.dy = -speed
 	end
-	if love.keyboard.isDown(down) then
+	if love.keyboard.isDown(down) and self.y < game_height - 23 then
 		self.dy = speed
 	end
 	if not (self.dx == 0 and self.dy == 0) then
@@ -453,8 +457,8 @@ function death_effect_explode(enemy)
 	pp.data = points
 	table.insert(particles, pp)
 
-	for p  = 1, 25 do
-		explode(pointX, pointY, math.random(-150, 150) + enemy.dx, math.random(-150, 150) + enemy.dy)
+	for p  = 1, 50 do
+		explode(pointX, pointY, math.random(-200, 200) + enemy.dx, math.random(-200, 200) + enemy.dy)
 	end
 end
 
@@ -515,6 +519,11 @@ function reset_game()
 	hearts = {}
 	score = 0
 
+	-- these are the controllers for every moving object
+	-- everything which moves along the screen should reference these variables
+	game_dx = -150
+	game_dy = 0
+
 	
 	sound_slash = love.audio.newSource("sounds/slash.wav", 'static')
 	shot_circ_r = 0
@@ -553,7 +562,7 @@ function reset_game()
 		table.insert(background, star)
 	end
 
-	guy1 = Enemy_Gross.new(game_width + 50, 200, -150, 0, {copies = 7})
+	guy1 = Enemy_Gross.new(game_width + 50, 200, game_dx, game_dy, {copies = 7})
 	table.insert(enemies, guy1)
 end
 
@@ -632,40 +641,13 @@ function update_particles(dt)
 	for i = #particles, 1, -1 do
 		local particle = particles[i]
 		particle:update(dt)
-		if timer_global - particle.timer > 2 + particle.seed then
+		if timer_global - particle.timer > 0.7 + particle.seed then
 			table.remove(particles, i)
 		end
 	end
 end
 
-
-function update_game(dt)
-	logstring = ""
-
-	if carmine.health <= 0 then
-		mode = 'gameover'
-		reset_game()
-	end
-
-	if love.keyboard.isDown('r') then
-		reset_game()
-	end
-	if timer_global > 32000 then
-		timer_global = 1
-	end
-
-	
-
-	-- invulnerability timer
-	if timer_invulnerable and timer_global - timer_invulnerable > 2 then
-		timer_invulnerable = nil
-	end
-	-- shot timer
-	if timer_shot and timer_global - timer_shot > 0.4 then
-		timer_shot = nil
-	end
-
-	
+function update_player(dt)
 	carmine_wings_left_animation:update(dt)
 	carmine_wings_right_animation:update(dt)
 	carmine:control(250, "a", "d", "w", "s")
@@ -712,11 +694,45 @@ function update_game(dt)
 			bullets[p].health = bullets[p].health -1
 		end
 	end
+end
+
+
+function update_game(dt)
+	logstring = ""
+
+	if carmine.health <= 0 then
+		mode = 'gameover'
+		reset_game()
+	end
+
+	if love.keyboard.isDown('r') then
+		reset_game()
+	end
+	if timer_global > 32000 then
+		timer_global = 1
+	end
+
+	local decrease_rate = 2
+	local decrease_per_frame = decrease_rate / love.timer.getFPS()
+	logstring = logstring .. (1 - decrease_per_frame)
+
+	-- invulnerability timer
+	if timer_invulnerable and timer_global - timer_invulnerable > 2 then
+		timer_invulnerable = nil
+	end
+	-- shot timer
+	if timer_shot and timer_global - timer_shot > 0.4 then
+		timer_shot = nil
+	end
+
+	
+	
 	
 	-- collection updates
 	update_bullets(dt)
 	update_background(dt)
 	update_enemies(dt)
+	update_player(dt)
 	
 	update_explosions(dt)
 	update_particles(dt)
@@ -897,17 +913,17 @@ function draw_particles()
 			set_draw_color(22)
 		elseif particle.id == "explosion" then
 			local time_elapsed = timer_global - particle.timer
-			if time_elapsed < 0.2 then
+			if time_elapsed < 0.1 then
 				set_draw_color(22)
-			elseif time_elapsed > 0.7 then
+			elseif time_elapsed > 0.5 then
 				set_draw_color(25)
-			elseif time_elapsed > 0.6 then
-				set_draw_color(4)
 			elseif time_elapsed > 0.4 then
-				set_draw_color(28)
+				set_draw_color(4)
 			elseif time_elapsed > 0.3 then
-				set_draw_color(6)
+				set_draw_color(28)
 			elseif time_elapsed > 0.2 then
+				set_draw_color(6)
+			elseif time_elapsed > 0.1 then
 				set_draw_color(9)
 			end
 			love.graphics.circle('fill', math.floor(particle.x), math.floor(particle.y), particle.radius)
@@ -935,10 +951,13 @@ end
 function draw_game()
 
 	draw_background()
+	
+	draw_particles()
 	draw_enemies()
+
 	draw_bullets()
 	draw_explosions()
-	draw_particles()
+	
 	draw_player()
 	draw_hearts()
 	love.graphics.print(score, 80, 0)
