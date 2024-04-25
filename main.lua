@@ -322,18 +322,22 @@ Enemy_Rock.__index = Enemy_Rock
 
 setmetatable(Enemy_Rock, {__index = MoveableObject})
 
-function Enemy_Rock.new(x, y, dx, dy)
+function Enemy_Rock.new(x, y, dx, dy, flags)
+	local flags = flags or {}
 	local self = MoveableObject.new(x, y, dx, dy, hitx, hity, hitw, hith, flags)
 	self.hitx = x
 	self.hity = y
+	self.dx = dx or game_dx
+	self.dy = dy or game_dy
 	self.hitw = 55
 	self.hith = 36
 	self.sheet = load_image("sprites/rocks/rock1_sheet.png")
 	self.animation = initialize_animation(self.sheet, 55, 36, '1-2', 0.1)
 	self.friendly = false
-	self.id = "evil_rock"
 	self.health = 3
 	self.points = 100
+	self.id = "evil_rock"
+	
 	return self
 end
 
@@ -346,6 +350,8 @@ function Enemy_Gross.new(x, y, dx, dy, flags)
 	local flags = flags or {}
 	local self = MoveableObject.new(x, y, dx, dy, hitx, hity, hitw, hith, flags)
 	setmetatable(self, Enemy_Gross)
+	self.dx = dx or game_dx
+	self.dy = dy or game_dy
 	self.hitx = x
 	self.hity = y
 	self.hitw = 23
@@ -353,13 +359,16 @@ function Enemy_Gross.new(x, y, dx, dy, flags)
 	self.sheet = load_image("sprites/gross_guy_sheet.png")
 	self.animation = initialize_animation(self.sheet, 23, 35, '1-5', 0.1)
 	self.friendly = false
-	self.id = "gross_guy"
-	self.health = 5
+	self.health = 2
 	self.points = 50
+	self.id = "gross_guy"
+
+	-- unique
 	self.copies = flags.copies or 5
 	self.copying = flags.copying or true
 	self.switched = false
-	self.death_effects = {death_effect_points, death_effect_burst}
+	self.death_effects = {death_effect_points, death_effect_burst, death_effect_explode, death_effect_shockwave}
+
 	return self
 end
 
@@ -421,6 +430,12 @@ function set_draw_color(num)
 	love.graphics.setColor(r, g, b)
 end
 
+function spawn_enemy(enemy, x, y, dx, dy, flags)
+	local e = enemy.new(x, y, dx, dy, flags)
+
+	table.insert(enemies, e)
+end
+
 --  ____  ____  ____  ____  ___  ____  ___ 
 -- ( ___)( ___)( ___)( ___)/ __)(_  _)/ __)
 --  )__)  )__)  )__)  )__)( (__   )(  \__ \
@@ -467,7 +482,7 @@ function death_effect_burst(enemy)
 end
 
 function effect_points(x, y, dx, dy, value)
-	local pp = ParticleObject.new(x, y, dx, dy, "points")
+	local pp = ParticleObject.new(x, y, dx, dy, "effect_points")
 	pp.data = value
 	pp.timer = pp.timer + 0.5
 	score = score + value
@@ -477,9 +492,9 @@ end
 function effect_shockwave(x, y, dx, dy, r, dr, da)
 	local myp = ParticleObject.new(x, y, dx, dy, "effect_shockwave")
 	myp.r = r or 1
-	myp.alpha = 0.2
-	myp.dr = dr or 400--* math.random() * 1.5
-	local da = da or 0.25
+	myp.alpha = 1
+	myp.dr = dr or 250--* math.random() * 1.5
+	local da = da or 1
 	function myp:update(dt)
 		self.x = (self.x + self.dx * dt)
 		self.y = (self.y + self.dy * dt)
@@ -490,11 +505,13 @@ function effect_shockwave(x, y, dx, dy, r, dr, da)
 		self.alpha = self.alpha - da * dt
 	end
 	myp.timer = myp.timer + myp.seed - 0.5
-	table.insert(particles, myp)
+	for i = 1, 3 do
+		table.insert(explosions, myp)
+	end
 end
 
 function effect_burst(x, y, dx, dy, r, dr)
-	local myp = ParticleObject.new(x, y, dx, dy)
+	local myp = ParticleObject.new(x, y, dx, dy, "effect_burst")
 	myp.r = r or 30
 	myp.dr = dr or 200
 	function myp:update(dt)
@@ -513,13 +530,16 @@ end
 
 -- MAKES AN EXPLOSION AT A COORDINATE
 function effect_explode(x, y, dx, dy)
-	local myp = ParticleObject.new(x, y, dx, dy, "explosion")
+	local myp = ParticleObject.new(x, y, dx, dy, "effect_explosion")
 	function myp:update(dt)
 		self.x = (self.x + self.dx * dt)
 		self.y = (self.y + self.dy * dt)
 		local decrease_rate = 2.5
 		local decrease_per_frame = decrease_rate / love.timer.getFPS()
-		self.r = self.r - 1 * dt
+		self.r = self.r - 4 * dt
+		if self.r < 0 then
+			self.r = 0
+		end
 		self.dx = self.dx * (1 - decrease_per_frame)
 		self.dy = self.dy * (1 - decrease_per_frame)
 	end
@@ -602,7 +622,7 @@ function load_player()
 	carmine.id = "carmine"
 	carmine.max_health = 4
 	carmine.health = 4
-	carmine.attack_speed = 0.25
+	carmine.attack_speed = 0.1
 	carmine.attack_type = "double_water_shot"
 	function carmine:shoot(dt)
 		-- shot effect_burst data
@@ -672,7 +692,7 @@ function load_ui()
 	ui_hearts_y = ui_label_life_y + ui_label_life:getHeight()
 	ui_hearts_length = 13 * carmine.max_health
 	for i = 1, carmine.max_health do
-		table.insert(hearts, Graphic_Heart.new(ui_hearts_x + (11 * (i - 1)), ui_hearts_y, 0, 0))
+		table.insert(hearts, Graphic_Heart.new(ui_hearts_x + (12 * (i - 1)), ui_hearts_y, 0, 0))
 	end
 	
 	-- score
@@ -686,7 +706,18 @@ function load_ui()
 	ui_label_score_y = 4
 	ui_score = love.graphics.newText(font_gamer_med, score)
 	ui_score_x = ui_label_score_x
-	ui_score_y = ui_label_score_y + ui_label_score:getHeight()
+	ui_score_y = ui_label_score_y + ui_label_score:getHeight() + 2
+end
+
+function load_stars()
+	-- stars
+	for i = 1, 300 do
+		star = MoveableObject.new(math.random(1, game_width), math.random(1, game_height), math.random() * game_dx, math.random() * game_dy)
+		star.sheet = load_image("sprites/stars/star1_sheet.png")
+		star.animation = initialize_animation(star.sheet, 4, 7, '1-4', 0.1)
+		star.looping = true
+		table.insert(background, star)
+	end
 end
 
 function reset_game()
@@ -701,6 +732,7 @@ function reset_game()
 	score = 0
 	load_player()
 	load_ui()
+	level = 1
 
 
 	-- these are the controllers for every moving object
@@ -708,25 +740,17 @@ function reset_game()
 	game_dx = -150
 	game_dy = 0
 
-	
 	sound_slash = love.audio.newSource("sounds/slash.wav", 'static')
 	shot_circ_r = 0
 	shot_circ_x = 0
 	shot_circ_y = 0
-	
-	
 
-	-- stars
-	for i = 1, 300 do
-		star = MoveableObject.new(math.random(1, game_width), math.random(1, game_height), -math.random(1, 200), 0)
-		star.sheet = load_image("sprites/stars/star1_sheet.png")
-		star.animation = initialize_animation(star.sheet, 4, 7, '1-4', 0.1)
-		star.looping = true
-		table.insert(background, star)
+	if level == 1 then
+		load_stars()
 	end
+	
 
-	guy1 = Enemy_Gross.new(game_width + 50, 200, game_dx, game_dy, {copies = 7})
-	table.insert(enemies, guy1)
+	spawn_enemy(Enemy_Gross, game_width + 20, 150)
 end
 
 
@@ -807,7 +831,7 @@ function update_particles(dt)
 	for i = #particles, 1, -1 do
 		local particle = particles[i]
 		particle:update(dt)
-		if timer_global - particle.timer > 0.7 + particle.seed then
+		if timer_global - particle.timer > 2 + particle.seed then
 			table.remove(particles, i)
 		end
 	end
@@ -1020,26 +1044,31 @@ end
 function draw_explosions()
 	for i = 1, #explosions do
 		local explosion = explosions[i]
-		if math.sin(timer_global * 50) < 0.33 then
-			set_draw_color(22)
-		elseif math.sin(timer_global * 50) > -0.1 then
-			set_draw_color(6)
-		else
-			set_draw_color(28)
+		if explosion.id == "effect_burst" then
+			if math.sin(timer_global * 50) < 0.33 then
+				set_draw_color(22)
+			elseif math.sin(timer_global * 50) > -0.1 then
+				set_draw_color(6)
+			else
+				set_draw_color(28)
+			end
+			love.graphics.circle("fill", math.floor(explosion.x), math.floor(explosion.y), math.floor(explosion.r))
+		elseif explosion.id == "effect_shockwave" then
+			love.graphics.setColor(1, 1, 1, explosion.alpha)
+			love.graphics.circle('line', math.floor(explosion.x), math.floor(explosion.y), explosion.r)
 		end
-		love.graphics.circle("fill", math.floor(explosion.x), math.floor(explosion.y), math.floor(explosion.r))
-		set_draw_color(22)
 	end
+	set_draw_color(22)
 end
 
 function draw_particles()
 	for i = 1, #particles do
 		local particle = particles[i]
-		if particle.id == "points" then
+		if particle.id == "effect_points" then
 			set_draw_color(blink({21, 22, 23, 24}))
 			love.graphics.print(particle.data, math.floor(particle.x), math.floor(particle.y))
 			set_draw_color(22)
-		elseif particle.id == "explosion" then
+		elseif particle.id == "effect_explosion" then
 			local time_elapsed = timer_global - particle.timer
 			if time_elapsed < 0.1 then
 				set_draw_color(22)
@@ -1055,9 +1084,6 @@ function draw_particles()
 				set_draw_color(9)
 			end
 			love.graphics.circle('fill', math.floor(particle.x), math.floor(particle.y), particle.r)
-		elseif particle.id == "effect_shockwave" then
-			love.graphics.setColor(1, 1, 1, particle.alpha)
-			love.graphics.circle('line', math.floor(particle.x), math.floor(particle.y), particle.r)
 		end
 	end
 	set_draw_color(22)
