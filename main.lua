@@ -426,11 +426,11 @@ end
 -- (____)(__)  (__)  (____)\___) (__) (___/
 
 function death_effect_points(enemy)
+	local pointX = enemy.x + enemy.hitw/2
+	local pointY = enemy.y + enemy.hith/2
 	local points = enemy.points
-	score = score + points
-	local pp = ParticleObject.new(pointX, pointY, enemy.dx / 2.5, math.random(-25, 25), "points")
-	pp.data = points
-	table.insert(particles, pp)
+	
+	effect_points(pointX, pointY, enemy.dx / 2.5, math.random(-25, 25), points)
 end
 
 function death_effect_explode(enemy)
@@ -441,7 +441,7 @@ function death_effect_explode(enemy)
 	local pointY = enemy.y + enemy.hith/2
 
 	for p  = 1, 50 do
-		explode(pointX, pointY, math.random(-200, 200) + enemy.dx, math.random(-200, 200) + enemy.dy)
+		effect_explode(pointX, pointY, math.random(-200, 200) + enemy.dx, math.random(-200, 200) + enemy.dy)
 	end
 end
 
@@ -452,7 +452,7 @@ function death_effect_shockwave(enemy)
 	local pointX = enemy.x + enemy.hitw/2
 	local pointY = enemy.y + enemy.hith/2
 
-	shockwave(pointX, pointY, enemy.dx / 2, enemy.dy / 2)
+	effect_shockwave(pointX, pointY, enemy.dx / 2, enemy.dy / 2)
 end
 
 function death_effect_burst(enemy)
@@ -462,11 +462,19 @@ function death_effect_burst(enemy)
 	local pointX = enemy.x + enemy.hitw/2
 	local pointY = enemy.y + enemy.hith/2
 
-	burst(pointX, pointY, enemy.dx * 0.75, enemy.dy * 0.75)
+	effect_burst(pointX, pointY, enemy.dx * 0.75, enemy.dy * 0.75, 50)
 end
 
-function shockwave(x, y, dx, dy)
-	local myp = ParticleObject.new(x, y, dx, dy, "shockwave")
+function effect_points(x, y, dx, dy, value)
+	local pp = ParticleObject.new(x, y, dx, dy, "points")
+	pp.data = value
+	pp.timer = pp.timer + 0.5
+	score = score + value
+	table.insert(particles, pp)
+end
+
+function effect_shockwave(x, y, dx, dy)
+	local myp = ParticleObject.new(x, y, dx, dy, "effect_shockwave")
 	myp.r = 1
 	myp.alpha = 0.2
 	myp.dr = 400--* math.random() * 1.5
@@ -483,10 +491,10 @@ function shockwave(x, y, dx, dy)
 	table.insert(particles, myp)
 end
 
-function burst(x, y, dx, dy)
+function effect_burst(x, y, dx, dy, r, dr)
 	local myp = ParticleObject.new(x, y, dx, dy)
-	myp.r = 30
-	myp.dr = 200
+	myp.r = r or 30
+	myp.dr = dr or 200
 	function myp:update(dt)
 		self.x = (self.x + (self.dx) * dt)
 		self.y = (self.y + (self.dy) * dt)
@@ -502,7 +510,7 @@ function burst(x, y, dx, dy)
 end
 
 -- MAKES AN EXPLOSION AT A COORDINATE
-function explode(x, y, dx, dy)
+function effect_explode(x, y, dx, dy)
 	local myp = ParticleObject.new(x, y, dx, dy, "explosion")
 	function myp:update(dt)
 		self.x = (self.x + self.dx * dt)
@@ -564,7 +572,7 @@ function load_player()
 	carmine.health = 3
 	carmine.attack_speed = 0.25
 	function carmine:shoot(dt)
-		-- shot burst data
+		-- shot effect_burst data
 		shot_circ_x = carmine.x + 30
 		shot_circ_y = carmine.y + 10
 		if shot_circ_r > 0 then
@@ -809,8 +817,8 @@ function update_game(dt)
 
 				enemies[i].flash = 0.05
 
-				-- local bullet_burst = ExplosionObject.new(bullets[p].x + bullets[p].hitw/2, bullets[p].y + bullets[p].hith/2, 30, 200, bullets[p].dx * 0.05, bullets[p].dy * 0.05)
-				burst(bullets[p].x + bullets[p].hitw/2, bullets[p].y + bullets[p].hith/2, bullets[p].dx * 0.05, bullets[p].dy * 0.05)
+				-- local bullet_effect_burst = ExplosionObject.new(bullets[p].x + bullets[p].hitw/2, bullets[p].y + bullets[p].hith/2, 30, 200, bullets[p].dx * 0.05, bullets[p].dy * 0.05)
+				effect_burst(bullets[p].x + bullets[p].hitw/2, bullets[p].y + bullets[p].hith/2, bullets[p].dx * 0.05, bullets[p].dy * 0.05)
 			end
 		end
 	end
@@ -979,7 +987,7 @@ function draw_particles()
 				set_draw_color(9)
 			end
 			love.graphics.circle('fill', math.floor(particle.x), math.floor(particle.y), particle.r)
-		elseif particle.id == "shockwave" then
+		elseif particle.id == "effect_shockwave" then
 			love.graphics.setColor(1, 1, 1, particle.alpha)
 			love.graphics.circle('line', math.floor(particle.x), math.floor(particle.y), particle.r)
 		end
