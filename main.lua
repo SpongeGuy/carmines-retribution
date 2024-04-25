@@ -431,7 +431,7 @@ function death_effect_points(enemy)
 	local pointY = enemy.y + enemy.hith/2
 	local points = enemy.points
 	
-	effect_points(pointX, pointY, enemy.dx / 2.5, math.random(-25, 25), points)
+	effect_points(pointX, pointY, enemy.dx / 2.5 + math.random(-50, 50), math.random(-50, 50), points)
 end
 
 function death_effect_explode(enemy)
@@ -470,6 +470,7 @@ function effect_points(x, y, dx, dy, value)
 	local pp = ParticleObject.new(x, y, dx, dy, "points")
 	pp.data = value
 	pp.timer = pp.timer + 0.5
+	pp.alpha
 	score = score + value
 	table.insert(particles, pp)
 end
@@ -528,10 +529,37 @@ function effect_explode(x, y, dx, dy)
 	table.insert(particles, myp)
 end
 
+--  ___  _   _  _____  ____  ___ 
+-- / __)( )_( )(  _  )(_  _)/ __)
+-- \__ \ ) _ (  )(_)(   )(  \__ \
+-- (___/(_) (_)(_____) (__) (___/
 
+function single_water_shot(x, y, dx, dy, friendly)
+	local water = Projectile_Water.new(x, y, dx, dy, friendly)
+	timer_shot = timer_global
+	--timer_secondshot = timer_global
+	local sound = love.audio.newSource("sounds/ball_shot.wav", 'static')
+	sound:play()
+	key_space_pressed = true
+	
+	table.insert(bullets, water)
+	shot_circ_r = 25
+end
 
+function double_water_shot(x, y, dx, dy, friendly)
+	--21
+	local water1 = Projectile_Water.new(x, y + 21/2, dx, dy, friendly)
+	local water2 = Projectile_Water.new(x, y - 21/2, dx, dy, friendly)
+	timer_shot = timer_global
+	local sound = love.audio.newSource("sounds/ball_shot.wav", 'static')
+	sound:play()
+	key_space_pressed = true
+	
+	table.insert(bullets, water1)
+	table.insert(bullets, water2)
+	shot_circ_r = 25
 
-
+end
 
 
 
@@ -576,6 +604,7 @@ function load_player()
 	carmine.max_health = 4
 	carmine.health = 4
 	carmine.attack_speed = 0.25
+	carmine.attack_type = "double_water_shot"
 	function carmine:shoot(dt)
 		-- shot effect_burst data
 		shot_circ_x = carmine.x + 30
@@ -587,15 +616,11 @@ function load_player()
 
 		-- water drop
 		if love.keyboard.isDown('space') and not timer_shot then
-			local water = Projectile_Water.new(math.floor(carmine.x + 10), math.floor(carmine.y), 550, 0, true)
-			timer_shot = timer_global
-			--timer_secondshot = timer_global
-			local sound = love.audio.newSource("sounds/ball_shot.wav", 'static')
-			sound:play()
-			key_space_pressed = true
-			
-			table.insert(bullets, water)
-			shot_circ_r = 25
+			if carmine.attack_type == "single_water_shot" then
+				single_water_shot(math.floor(carmine.x + 10), math.floor(carmine.y), 550, 0, true)
+			elseif carmine.attack_type == "double_water_shot" then
+				double_water_shot(math.floor(carmine.x + 10), math.floor(carmine.y), 550, 0, true)
+			end
 		end
 
 		if timer_secondshot and timer_global - timer_secondshot > 0.1 then
