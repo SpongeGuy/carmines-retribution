@@ -3,6 +3,7 @@
 
 -- variables that will literally never change here
 local font_consolas = love.graphics.setNewFont("crafters-delight.ttf", 8)
+local font_gamer_med = love.graphics.newFont("PressStart2P.ttf", 8)
 local anim8 = require 'anim8'
 local push = require 'push'
 
@@ -282,8 +283,8 @@ function Graphic_Heart.new(x, y, dx, dy)
 	local self = ParticleObject.new(x, y, dx, dy, id)
 	setmetatable(self, Graphic_Heart)
 	self.id = "heart_graphic"
-	self.sheet = load_image("sprites/heart/heart_sheet.png")
-	self.animation = initialize_animation(self.sheet, 16, 16, '1-2', 1)
+	self.sheet = load_image("sprites/heart/heart_alt_sheet.png")
+	self.animation = initialize_animation(self.sheet, 11, 11, '1-2', 1)
 	self.full = true
 	return self
 end
@@ -473,11 +474,12 @@ function effect_points(x, y, dx, dy, value)
 	table.insert(particles, pp)
 end
 
-function effect_shockwave(x, y, dx, dy)
+function effect_shockwave(x, y, dx, dy, r, dr, da)
 	local myp = ParticleObject.new(x, y, dx, dy, "effect_shockwave")
-	myp.r = 1
+	myp.r = r or 1
 	myp.alpha = 0.2
-	myp.dr = 400--* math.random() * 1.5
+	myp.dr = dr or 400--* math.random() * 1.5
+	local da = da or 0.25
 	function myp:update(dt)
 		self.x = (self.x + self.dx * dt)
 		self.y = (self.y + self.dy * dt)
@@ -485,7 +487,7 @@ function effect_shockwave(x, y, dx, dy)
 		local decrease_rate = 3.5
 		local decrease_per_frame = decrease_rate / love.timer.getFPS()
 		self.dr = self.dr * (1 - decrease_per_frame)
-		self.alpha = self.alpha - 0.25 * dt
+		self.alpha = self.alpha - da * dt
 	end
 	myp.timer = myp.timer + myp.seed - 0.5
 	table.insert(particles, myp)
@@ -565,11 +567,14 @@ function love.load()
 	]]
 end
 
+
+
 function load_player()
 	-- carmine
 	carmine = MoveableObject.new(100, 200, 0, 0, 114, 208, 14, 7)
 	carmine.id = "carmine"
-	carmine.health = 3
+	carmine.max_health = 4
+	carmine.health = 4
 	carmine.attack_speed = 0.25
 	function carmine:shoot(dt)
 		-- shot effect_burst data
@@ -617,6 +622,39 @@ function load_player()
 	carmine_wings_right_animation = anim8.newAnimation(g('1-4', 1), 0.1)
 end
 
+function load_ui()
+
+	-- name
+	ui_label_name = love.graphics.newText(font_gamer_med, "CARMINE")
+	ui_label_name_x = 4
+	ui_label_name_y = 4
+
+	-- life
+	ui_label_life = love.graphics.newText(font_gamer_med, "-LIFE-")
+	ui_label_life_x = ui_label_name:getWidth() + 12
+	ui_label_life_y = 4
+	hearts = {}
+	ui_hearts_x = ui_label_life_x
+	ui_hearts_y = ui_label_life_y + ui_label_life:getHeight()
+	ui_hearts_length = 13 * carmine.max_health
+	for i = 1, carmine.max_health do
+		table.insert(hearts, Graphic_Heart.new(ui_hearts_x + (11 * (i - 1)), ui_hearts_y, 0, 0))
+	end
+	
+	-- score
+	ui_label_score = love.graphics.newText(font_gamer_med, "-SCORE-")
+	if ui_label_life:getWidth() > ui_hearts_length then
+		ui_label_score_x = ui_label_life_x + ui_label_life:getWidth() + 6
+	else
+		ui_label_score_x = ui_label_life_x + ui_hearts_length + 6
+	end
+	
+	ui_label_score_y = 4
+	ui_score = love.graphics.newText(font_gamer_med, score)
+	ui_score_x = ui_label_score_x
+	ui_score_y = ui_label_score_y + ui_label_score:getHeight()
+end
+
 function reset_game()
 	-- init variables
 	bullets = {}
@@ -624,8 +662,12 @@ function reset_game()
 	enemies = {}
 	explosions = {}
 	particles = {}
-	hearts = {}
+
+	-- ui
 	score = 0
+	load_player()
+	load_ui()
+
 
 	-- these are the controllers for every moving object
 	-- everything which moves along the screen should reference these variables
@@ -637,13 +679,8 @@ function reset_game()
 	shot_circ_r = 0
 	shot_circ_x = 0
 	shot_circ_y = 0
-
-	-- hearts
-	table.insert(hearts, Graphic_Heart.new(0, 0, 0, 0))
-	table.insert(hearts, Graphic_Heart.new(20, 0, 0, 0))
-	table.insert(hearts, Graphic_Heart.new(40, 0, 0, 0))
 	
-	load_player()
+	
 
 	-- stars
 	for i = 1, 300 do
@@ -703,7 +740,7 @@ function update_hearts(dt)
 	for i = #hearts, 1, -1 do
 		hearts[i].full = false
 	end
-	for i = 1, 3 do
+	for i = 1, carmine.max_health do
 		if i <= carmine.health then
 			hearts[i].full = true
 		end
@@ -767,6 +804,7 @@ end
 
 function update_game(dt)
 	logstring = ""
+	load_ui() -- probably shouldn't have this here, but right now it's fine
 
 	if carmine.health <= 0 then
 		mode = 'gameover'
@@ -1011,10 +1049,21 @@ function draw_player()
 	love.graphics.circle('fill', math.floor(shot_circ_x), math.floor(shot_circ_y), shot_circ_r)
 end
 
+function draw_ui()
+	love.graphics.draw(ui_label_name, ui_label_name_x, ui_label_name_y)
+	love.graphics.draw(ui_label_life, ui_label_life_x, ui_label_life_y)
+	draw_hearts()
+	love.graphics.draw(ui_label_score, ui_label_score_x, ui_label_score_y)
+	love.graphics.draw(ui_score, ui_score_x, ui_score_y)
+end
+
 function draw_game()
 
 	draw_background()
 	
+	draw_ui()
+	
+
 	draw_particles()
 	draw_enemies()
 
@@ -1022,8 +1071,6 @@ function draw_game()
 	draw_explosions()
 	
 	draw_player()
-	draw_hearts()
-	love.graphics.print(score, 80, 0)
 
 end
 
@@ -1056,6 +1103,8 @@ function draw_gameover()
 	love.graphics.print(text1, (game_width / 2) - math.floor(font_consolas:getWidth(text1) / 2.2), (game_height / 2) - 60)
 	love.graphics.print(text2, (game_width / 2) - math.floor(font_consolas:getWidth(text2) / 2.2), (game_height / 2) - 40)
 end
+
+
 
 function love.draw()
 	push:start()
