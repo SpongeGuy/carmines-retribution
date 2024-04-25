@@ -2,7 +2,7 @@
 -- sponge guy
 
 -- variables that will literally never change here
-local font_consolas = love.graphics.setNewFont("crafters-delight.ttf", 8)
+local font_consolas = love.graphics.setNewFont("PressStart2P.ttf", 8)
 local font_gamer_med = love.graphics.newFont("PressStart2P.ttf", 8)
 local anim8 = require 'anim8'
 local push = require 'push'
@@ -470,7 +470,6 @@ function effect_points(x, y, dx, dy, value)
 	local pp = ParticleObject.new(x, y, dx, dy, "points")
 	pp.data = value
 	pp.timer = pp.timer + 0.5
-	pp.alpha
 	score = score + value
 	table.insert(particles, pp)
 end
@@ -648,6 +647,16 @@ function load_player()
 end
 
 function load_ui()
+	-- level info
+	ui_label_level_num_text = "WAVE 1"
+	ui_label_level_num = love.graphics.newText(font_gamer_med, ui_label_level_num_text)
+	ui_label_level_num_x = center_text(ui_label_level_num_text)
+	ui_label_level_num_y = (game_height / 2) - 60
+
+	ui_label_level_name_text = "OUTER SPACE"
+	ui_label_level_name = love.graphics.newText(font_gamer_med, ui_label_level_name_text)
+	ui_label_level_name_x = center_text(ui_label_level_name_text)
+	ui_label_level_name_y = (game_height / 2) - 40
 
 	-- name
 	ui_label_name = love.graphics.newText(font_gamer_med, "CARMINE")
@@ -830,6 +839,9 @@ end
 function update_game(dt)
 	logstring = ""
 	load_ui() -- probably shouldn't have this here, but right now it's fine
+	if timer_levelselect_delay and timer_global - timer_levelselect_delay > 2 then
+		timer_levelselect_delay = nil
+	end
 
 	if carmine.health <= 0 then
 		mode = 'gameover'
@@ -837,7 +849,7 @@ function update_game(dt)
 	end
 
 	if love.keyboard.isDown('r') then
-		reset_game()
+		mode = 'start'
 	end
 	if timer_global > 32000 then
 		timer_global = 1
@@ -927,22 +939,15 @@ function update_game(dt)
 	log1:log(logstring)
 end
 
-function update_levelscreen(dt)
-	reset_game()
-	if not timer_levelselect_delay then
-		timer_levelselect_delay = timer_global
-	end
-	if timer_global - timer_levelselect_delay > 2 then
-		mode = 'game'
-		timer_levelselect_delay = nil
-	end
-end
-
 function update_start(dt)
 	-- update function for start screen
 	if love.keyboard.isDown('space') and not key_space_pressed then
-		mode = 'levelscreen'
+		mode = 'game'
 		key_space_pressed = true
+		reset_game()
+		if not timer_levelselect_delay then
+			timer_levelselect_delay = timer_global
+		end
 	end
 end
 
@@ -1083,28 +1088,28 @@ function draw_ui()
 end
 
 function draw_game()
-
 	draw_background()
-	
 	draw_ui()
 	
-
 	draw_particles()
 	draw_enemies()
-
 	draw_bullets()
 	draw_explosions()
 	
 	draw_player()
 
+	-- this is for level info at beginning of thing
+	if timer_levelselect_delay then
+		draw_levelscreen()
+	end
+
 end
 
 function draw_levelscreen()
 	set_draw_color(blink({21, 22, 23, 24}))
-	local text1 = "LEVEL 1"
-	local text2 = "OUTER SPACER"
-	love.graphics.print(text1, center_text(text1), (game_height / 2) - 60)
-	love.graphics.print(text2, center_text(text2), (game_height / 2) - 40)
+	love.graphics.draw(ui_label_level_num, ui_label_level_num_x, ui_label_level_num_y)
+	love.graphics.draw(ui_label_level_name, ui_label_level_name_x, ui_label_level_name_y)
+	set_draw_color(22)
 end
 
 -- returns x value
