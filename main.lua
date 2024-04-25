@@ -166,13 +166,6 @@ end
 function ParticleObject:update(dt)
 	self.x = (self.x + self.dx * dt)
 	self.y = (self.y + self.dy * dt)
-	if self.id == "explosion" and self.radius then
-		local decrease_rate = 2.5
-		local decrease_per_frame = decrease_rate / love.timer.getFPS()
-		self.radius = self.radius - 1 * dt
-		self.dx = self.dx * (1 - decrease_per_frame)
-		self.dy = self.dy * (1 - decrease_per_frame)
-	end
 end
 
 local ExplosionObject = {}
@@ -375,7 +368,7 @@ function Enemy_Gross.new(x, y, dx, dy, flags)
 	self.animation = initialize_animation(self.sheet, 23, 35, '1-5', 0.1)
 	self.friendly = false
 	self.id = "gross_guy"
-	self.health = 2
+	self.health = 5
 	self.points = 50
 	self.copies = flags.copies or 5
 	self.copying = flags.copying or true
@@ -441,6 +434,14 @@ function set_draw_color(num)
 	love.graphics.setColor(r, g, b)
 end
 
+function death_effect_points(enemy)
+	local points = enemy.points
+	score = score + points
+	local pp = ParticleObject.new(pointX, pointY, enemy.dx / 2.5, math.random(-25, 25), "points")
+	pp.data = points
+	table.insert(particles, pp)
+end
+
 function death_effect_explode(enemy)
 	local sound = love.audio.newSource("sounds/block_hit.wav", 'static')
 	sound:play()
@@ -451,20 +452,42 @@ function death_effect_explode(enemy)
 	local enemy_burst = ExplosionObject.new(pointX, pointY, 50, 200, enemy.dx * 0.75, enemy.dy * 0.75)
 	table.insert(explosions, enemy_burst)
 
-	local points = enemy.points
-	score = score + points
-	local pp = ParticleObject.new(pointX, pointY, enemy.dx / 2.5, math.random(-25, 25), "points")
-	pp.data = points
-	table.insert(particles, pp)
-
 	for p  = 1, 50 do
 		explode(pointX, pointY, math.random(-200, 200) + enemy.dx, math.random(-200, 200) + enemy.dy)
+		--shockwave(pointX, pointY, enemy.dx / 2, enemy.dy / 2)
 	end
+end
+
+function shockwave(x, y, dx, dy)
+	local myp = ParticleObject.new(x, y, dx, dy, "shockwave")
+	myp.radius = 1
+	myp.alpha = 0.2
+	myp.dr = 400--* math.random() * 1.5
+	function myp:update(dt)
+		self.x = (self.x + self.dx * dt)
+		self.y = (self.y + self.dy * dt)
+		self.radius = (self.radius + self.dr * dt)
+		local decrease_rate = 3.5
+		local decrease_per_frame = decrease_rate / love.timer.getFPS()
+		self.dr = self.dr * (1 - decrease_per_frame)
+		self.alpha = self.alpha - 0.25 * dt
+	end
+	myp.timer = myp.timer + myp.seed - 0.5
+	table.insert(particles, myp)
 end
 
 -- MAKES AN EXPLOSION AT A COORDINATE
 function explode(x, y, dx, dy)
 	local myp = ParticleObject.new(x, y, dx, dy, "explosion")
+	function myp:update(dt)
+		self.x = (self.x + self.dx * dt)
+		self.y = (self.y + self.dy * dt)
+		local decrease_rate = 2.5
+		local decrease_per_frame = decrease_rate / love.timer.getFPS()
+		self.radius = self.radius - 1 * dt
+		self.dx = self.dx * (1 - decrease_per_frame)
+		self.dy = self.dy * (1 - decrease_per_frame)
+	end
 	myp.radius = math.floor(math.random(4, 8))
 	myp.timer = myp.timer + myp.seed
 	table.insert(particles, myp)
@@ -712,10 +735,6 @@ function update_game(dt)
 		timer_global = 1
 	end
 
-	local decrease_rate = 2
-	local decrease_per_frame = decrease_rate / love.timer.getFPS()
-	logstring = logstring .. (1 - decrease_per_frame)
-
 	-- invulnerability timer
 	if timer_invulnerable and timer_global - timer_invulnerable > 2 then
 		timer_invulnerable = nil
@@ -927,6 +946,9 @@ function draw_particles()
 				set_draw_color(9)
 			end
 			love.graphics.circle('fill', math.floor(particle.x), math.floor(particle.y), particle.radius)
+		elseif particle.id == "shockwave" then
+			love.graphics.setColor(1, 1, 1, particle.alpha)
+			love.graphics.circle('line', math.floor(particle.x), math.floor(particle.y), particle.radius)
 		end
 	end
 	set_draw_color(22)
