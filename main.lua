@@ -158,9 +158,8 @@ function ParticleObject.new(x, y, dx, dy, id)
 	self.dx = dx or 0
 	self.dy = dy or 0
 	self.id = id or nil
-	self.data = nil
 	self.timer = timer_global
-	self.seed = math.random() * 0.2
+	self.seed = math.random() * 0.25
 	return self
 end
 
@@ -190,7 +189,6 @@ function MoveableObject.new(x, y, dx, dy, hitx, hity, hitw, hith, flags) --here
 	self.sheet = flags.sheet or nil
 	self.animation = flags.animation or nil
 	self.id = flags.id or ""
-	self.looping = flags.looping or false
 	self.friendly = flags.friendly or nil
 	self.health = flags.health or nil
 	self.points = flags.points or 0
@@ -222,15 +220,6 @@ function MoveableObject:update(dt)
 	-- ensure object does not micromove
 	if self.dx < 0.001 and self.dx > -0.001 then
 		self.dx = 0
-	end
-
-	-- handle screen looping if applicable
-	if self.looping then
-		if self.dx < 0 and self.x < -50 then
-			self.x = game_width + 50
-		elseif self.dx > 0 and self.x > game_width + 50 then
-			self.x = -50
-		end
 	end
 
 	-- flash tickdown
@@ -334,9 +323,18 @@ function Enemy_Rock.new(x, y, dx, dy, flags)
 	self.sheet = load_image("sprites/rocks/rock1_sheet.png")
 	self.animation = initialize_animation(self.sheet, 55, 36, '1-2', 0.1)
 	self.friendly = false
-	self.health = 3
+	self.health = 5
 	self.points = 100
 	self.id = "evil_rock"
+
+	self.death_effects = {
+		death_effect_points, 
+		death_effect_burst, 
+		death_effect_explode, 
+		death_effect_shockwave,
+		death_effect_sound_blockhit,
+		death_effect_break,
+	}
 	
 	return self
 end
@@ -367,7 +365,14 @@ function Enemy_Gross.new(x, y, dx, dy, flags)
 	self.copies = flags.copies or 5
 	self.copying = flags.copying or true
 	self.switched = false
-	self.death_effects = {death_effect_points, death_effect_burst, death_effect_explode, death_effect_shockwave}
+	self.death_effects = {
+		death_effect_points, 
+		death_effect_burst, 
+		death_effect_explode, 
+		death_effect_shockwave,
+		death_effect_sound_blockhit,
+		death_effect_break,
+	}
 
 	return self
 end
@@ -450,21 +455,15 @@ function death_effect_points(enemy)
 end
 
 function death_effect_explode(enemy)
-	local sound = love.audio.newSource("sounds/block_hit.wav", 'static')
-	sound:play()
-
 	local pointX = enemy.x + enemy.hitw/2
 	local pointY = enemy.y + enemy.hith/2
 
 	for p  = 1, 50 do
-		effect_explode(pointX, pointY, math.random(-200, 200) + enemy.dx, math.random(-200, 200) + enemy.dy)
+		effect_explode(pointX, pointY, math.random(-150, 150) + enemy.dx, math.random(-150, 150) + enemy.dy)
 	end
 end
 
 function death_effect_shockwave(enemy)
-	local sound = love.audio.newSource("sounds/block_hit.wav", 'static')
-	sound:play()
-
 	local pointX = enemy.x + enemy.hitw/2
 	local pointY = enemy.y + enemy.hith/2
 
@@ -472,18 +471,29 @@ function death_effect_shockwave(enemy)
 end
 
 function death_effect_burst(enemy)
-	local sound = love.audio.newSource("sounds/block_hit.wav", 'static')
-	sound:play()
-
 	local pointX = enemy.x + enemy.hitw/2
 	local pointY = enemy.y + enemy.hith/2
 
 	effect_burst(pointX, pointY, enemy.dx * 0.75, enemy.dy * 0.75, 50)
 end
 
+function death_effect_break(enemy)
+	local pointX = enemy.x + enemy.hitw/2
+	local pointY = enemy.y + enemy.hith/2
+
+	for i = 1, 50 do
+		effect_break(pointX, pointY, enemy.dx + math.random(-300, 300), enemy.dy + math.random(-300, 300))
+	end
+end
+
+function death_effect_sound_blockhit(enemy)
+	local sound = love.audio.newSource("sounds/block_hit.wav", 'static')
+	sound:play()
+end
+
 function effect_points(x, y, dx, dy, value)
 	local pp = ParticleObject.new(x, y, dx, dy, "effect_points")
-	pp.data = value
+	pp.value = value
 	pp.timer = pp.timer + 0.5
 	score = score + value
 	table.insert(particles, pp)
@@ -508,6 +518,24 @@ function effect_shockwave(x, y, dx, dy, r, dr, da)
 	for i = 1, 3 do
 		table.insert(explosions, myp)
 	end
+end
+
+function effect_break(x, y, dx, dy)
+	local myp = ParticleObject.new(x, y, dx, dy, "effect_break")
+	myp.dx = dx or math.random(-300, 300)
+	myp.dy = dy or math.random(-300, 300)
+	myp.r = 1
+	myp.timer = myp.timer + myp.seed - 1.5
+	function myp:update(dt)
+		self.x = (self.x + self.dx * dt)
+		self.y = (self.y + self.dy * dt)
+		local decrease_rate = 2.5
+		local decrease_per_frame = decrease_rate / love.timer.getFPS()
+		self.dx = self.dx * (1 - decrease_per_frame)
+		self.dy = self.dy * (1 - decrease_per_frame)
+
+	end
+	table.insert(explosions, myp)
 end
 
 function effect_burst(x, y, dx, dy, r, dr)
@@ -542,11 +570,33 @@ function effect_explode(x, y, dx, dy)
 		end
 		self.dx = self.dx * (1 - decrease_per_frame)
 		self.dy = self.dy * (1 - decrease_per_frame)
+
 	end
 	myp.r = math.floor(math.random(4, 8))
 	myp.timer = myp.timer + myp.seed
 	table.insert(particles, myp)
 end
+
+function effect_starfield(x, y, w, h)
+	for i = 1, (w / 6) + (h / 6) do
+		star = ParticleObject.new(math.random(x, w), math.random(y, h), math.random(0, game_dx), math.random(0, game_dy), "starfield_star")
+		star.sheet = load_image("sprites/stars/star1_sheet.png")
+		star.animation = initialize_animation(star.sheet, 4, 7, '1-4', 0.1)
+		function star:update(dt)
+			self.x = self.x + self.dx * dt
+			self.y = self.y + self.dy * dt
+			if self.dx < x and self.x < x - 50 then
+				self.x = w + 50
+			elseif self.dx > x and self.x > w + 50 then
+				self.x = x - 50
+			end
+			self.animation:update(dt)
+		end
+		table.insert(background, star)
+	end
+end
+
+
 
 --  ___  _   _  _____  ____  ___ 
 -- / __)( )_( )(  _  )(_  _)/ __)
@@ -622,8 +672,8 @@ function load_player()
 	carmine.id = "carmine"
 	carmine.max_health = 4
 	carmine.health = 4
-	carmine.attack_speed = 0.1
-	carmine.attack_type = "double_water_shot"
+	carmine.attack_speed = 0.25
+	carmine.attack_type = "single_water_shot"
 	function carmine:shoot(dt)
 		-- shot effect_burst data
 		shot_circ_x = carmine.x + 30
@@ -746,11 +796,11 @@ function reset_game()
 	shot_circ_y = 0
 
 	if level == 1 then
-		load_stars()
+		effect_starfield(0, 0, game_width, game_height)
 	end
 	
 
-	spawn_enemy(Enemy_Gross, game_width + 20, 150)
+	spawn_enemy(Enemy_Rock, game_width + 20, 150)
 end
 
 
@@ -821,7 +871,7 @@ function update_explosions(dt)
 	for i = #explosions, 1, -1 do
 		local explosion = explosions[i]
 		explosion:update(dt)
-		if explosion.r <= 0 then
+		if explosion.r <= 0 or timer_global - explosion.timer > 2 then
 			table.remove(explosions, i)
 		end
 	end
@@ -913,11 +963,15 @@ function update_game(dt)
 
 				local sound = love.audio.newSource("sounds/deep_hit.wav", 'static')
 				sound:play()
-
+				effect_shockwave(bullets[p].x + bullets[p].hitw/2, bullets[p].y + bullets[p].hith/2, bullets[p].dx * 0.05, bullets[p].dy * 0.05, 1, 50)
+				for fewji = 1, 3 do
+					effect_break(enemies[i].x + enemies[i].hitw / 2, enemies[i].y + enemies[i].hith / 2)
+				end
 				enemies[i].flash = 0.05
 
+
 				-- local bullet_effect_burst = ExplosionObject.new(bullets[p].x + bullets[p].hitw/2, bullets[p].y + bullets[p].hith/2, 30, 200, bullets[p].dx * 0.05, bullets[p].dy * 0.05)
-				effect_burst(bullets[p].x + bullets[p].hitw/2, bullets[p].y + bullets[p].hith/2, bullets[p].dx * 0.05, bullets[p].dy * 0.05)
+				--effect_burst(bullets[p].x + bullets[p].hitw/2, bullets[p].y + bullets[p].hith/2, bullets[p].dx * 0.05, bullets[p].dy * 0.05)
 			end
 		end
 	end
@@ -1056,6 +1110,10 @@ function draw_explosions()
 		elseif explosion.id == "effect_shockwave" then
 			love.graphics.setColor(1, 1, 1, explosion.alpha)
 			love.graphics.circle('line', math.floor(explosion.x), math.floor(explosion.y), explosion.r)
+			
+		elseif explosion.id == "effect_break" then
+			set_draw_color(22)
+			love.graphics.circle('fill', math.floor(explosion.x), math.floor(explosion.y), explosion.r)
 		end
 	end
 	set_draw_color(22)
@@ -1065,8 +1123,8 @@ function draw_particles()
 	for i = 1, #particles do
 		local particle = particles[i]
 		if particle.id == "effect_points" then
-			set_draw_color(blink({21, 22, 23, 24}))
-			love.graphics.print(particle.data, math.floor(particle.x), math.floor(particle.y))
+			set_draw_color(blink({21, 22, 23, 20, 10, 11, 22}))
+			love.graphics.print(particle.value, math.floor(particle.x), math.floor(particle.y))
 			set_draw_color(22)
 		elseif particle.id == "effect_explosion" then
 			local time_elapsed = timer_global - particle.timer
@@ -1106,7 +1164,9 @@ function draw_player()
 end
 
 function draw_ui()
+	set_draw_color(7)
 	love.graphics.draw(ui_label_name, ui_label_name_x, ui_label_name_y)
+	set_draw_color(22)
 	love.graphics.draw(ui_label_life, ui_label_life_x, ui_label_life_y)
 	draw_hearts()
 	love.graphics.draw(ui_label_score, ui_label_score_x, ui_label_score_y)
