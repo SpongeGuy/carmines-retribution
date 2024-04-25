@@ -220,10 +220,19 @@ function MoveableObject.new(x, y, dx, dy, hitx, hity, hitw, hith, flags) --here
 	self.friendly = flags.friendly or nil
 	self.health = flags.health or nil
 	self.points = flags.points or 0
+	self.death_effects = nil
 
 	-- timers
 	self.flash = 0
 	return self
+end
+
+function MoveableObject:trigger_death_effects()
+	if self.death_effects then
+		for _, effect in ipairs(self.death_effects) do
+			effect(self)
+		end
+	end
 end
 
 function MoveableObject:update(dt)
@@ -373,6 +382,7 @@ function Enemy_Gross.new(x, y, dx, dy, flags)
 	self.copies = flags.copies or 5
 	self.copying = flags.copying or true
 	self.switched = false
+	self.death_effects = {death_effect_points, death_effect_explode}
 	return self
 end
 
@@ -766,7 +776,7 @@ function update_game(dt)
 				enemies[i].health = enemies[i].health - 1
 				bullets[p].health = bullets[p].health - 1
 				if enemies[i].health <= 0 then
-					death_effect_explode(enemies[i])
+					enemies[i]:trigger_death_effects()
 				else
 					local sound = love.audio.newSource("sounds/deep_hit.wav", 'static')
 					sound:play()
