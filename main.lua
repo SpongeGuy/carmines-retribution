@@ -66,7 +66,7 @@ local grey_colors = {color_white, color_white, color_white, color_lightgrey, col
 
 -- shader effects
 
-
+-- THIS FONT IS CALLED 'BULBHEAD' ON https://patorjk.com/software/taag
 --  __  __  ____  ____  __    ____  ____  ____  ____  ___ 
 -- (  )(  )(_  _)(_  _)(  )  (_  _)(_  _)(_  _)( ___)/ __)
 --  )(__)(   )(   _)(_  )(__  _)(_   )(   _)(_  )__) \__ \
@@ -295,7 +295,10 @@ function MoveableObject:control(speed, left, right, up, down)
 	end
 end
 
--- define specific object types
+--  ____  _  _  _   _  ____  ____  ____  ____  ____  ____  
+-- (_  _)( \( )( )_( )( ___)(  _ \(_  _)(_  _)( ___)(  _ \ 
+--  _)(_  )  (  ) _ (  )__)  )   / _)(_   )(   )__)  )(_) )
+-- (____)(_)\_)(_) (_)(____)(_)\_)(____) (__) (____)(____/ 
 
 local Graphic_Heart = {}
 Graphic_Heart.__index = Graphic_Heart
@@ -382,7 +385,7 @@ function Enemy_Gross.new(x, y, dx, dy, flags)
 	self.copies = flags.copies or 5
 	self.copying = flags.copying or true
 	self.switched = false
-	self.death_effects = {death_effect_points, death_effect_explode}
+	self.death_effects = {death_effect_points, death_effect_burst}
 	return self
 end
 
@@ -444,6 +447,11 @@ function set_draw_color(num)
 	love.graphics.setColor(r, g, b)
 end
 
+--  ____  ____  ____  ____  ___  ____  ___ 
+-- ( ___)( ___)( ___)( ___)/ __)(_  _)/ __)
+--  )__)  )__)  )__)  )__)( (__   )(  \__ \
+-- (____)(__)  (__)  (____)\___) (__) (___/
+
 function death_effect_points(enemy)
 	local points = enemy.points
 	score = score + points
@@ -459,13 +467,30 @@ function death_effect_explode(enemy)
 	local pointX = enemy.x + enemy.hitw/2
 	local pointY = enemy.y + enemy.hith/2
 
-	local enemy_burst = ExplosionObject.new(pointX, pointY, 50, 200, enemy.dx * 0.75, enemy.dy * 0.75)
-	table.insert(explosions, enemy_burst)
-
 	for p  = 1, 50 do
 		explode(pointX, pointY, math.random(-200, 200) + enemy.dx, math.random(-200, 200) + enemy.dy)
-		--shockwave(pointX, pointY, enemy.dx / 2, enemy.dy / 2)
 	end
+end
+
+function death_effect_shockwave(enemy)
+	local sound = love.audio.newSource("sounds/block_hit.wav", 'static')
+	sound:play()
+
+	local pointX = enemy.x + enemy.hitw/2
+	local pointY = enemy.y + enemy.hith/2
+
+	shockwave(pointX, pointY, enemy.dx / 2, enemy.dy / 2)
+end
+
+function death_effect_burst(enemy)
+	local sound = love.audio.newSource("sounds/block_hit.wav", 'static')
+	sound:play()
+
+	local pointX = enemy.x + enemy.hitw/2
+	local pointY = enemy.y + enemy.hith/2
+
+	local enemy_burst = ExplosionObject.new(pointX, pointY, 50, 200, enemy.dx * 0.75, enemy.dy * 0.75)
+	table.insert(explosions, enemy_burst)
 end
 
 function shockwave(x, y, dx, dy)
@@ -618,6 +643,9 @@ function update_enemies(dt)
 		enemy:update(dt)
 		local enemy_left_game_area = (enemy.x > (window_width / window_scale) + 200 or enemy.x < -200) or (enemy.y > (window_height / window_scale) + 200 or enemy.y < -200)
 		local enemy_dead = enemy.health and enemy.health <= 0
+		if enemy_dead then
+			enemy:trigger_death_effects()
+		end
 		if enemy_left_game_area or enemy_dead then
 			table.remove(enemies, i)
 		end
@@ -775,12 +803,10 @@ function update_game(dt)
 			if bullets[p].friendly and not enemies[i].friendly and get_collision(enemies[i], bullets[p]) then
 				enemies[i].health = enemies[i].health - 1
 				bullets[p].health = bullets[p].health - 1
-				if enemies[i].health <= 0 then
-					enemies[i]:trigger_death_effects()
-				else
-					local sound = love.audio.newSource("sounds/deep_hit.wav", 'static')
-					sound:play()
-				end
+
+				local sound = love.audio.newSource("sounds/deep_hit.wav", 'static')
+				sound:play()
+
 				enemies[i].flash = 0.05
 
 				local bullet_burst = ExplosionObject.new(bullets[p].x + bullets[p].hitw/2, bullets[p].y + bullets[p].hith/2, 30, 200, bullets[p].dx * 0.05, bullets[p].dy * 0.05)
@@ -795,12 +821,10 @@ function update_game(dt)
 				sound_slash:play()
 				enemies[i].health = enemies[i].health - 1
 				carmine.health = carmine.health - 1
-				if enemies[i].health <= 0 then
-					death_effect_explode(enemies[i])
-				else
-					local sound = love.audio.newSource("sounds/deep_hit.wav", "static")
-					sound:play()
-				end
+
+				local sound = love.audio.newSource("sounds/deep_hit.wav", "static")
+				sound:play()
+
 				enemies[i].flash = 0.05
 				timer_invulnerable = timer_global
 				return
