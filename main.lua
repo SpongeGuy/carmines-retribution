@@ -15,17 +15,6 @@ local game_width, game_height = 960, 540
 local window_scale = window_width/game_width
 push:setupScreen(game_width, game_height, window_width, window_height, {windowed = true})
 
-local color_darkred = {172, 50, 50}
-local color_brightred = {219, 24, 24}
-local color_orange = {223, 113, 38}
-local color_white = {255, 255, 255}
-local color_green = {153, 229, 80}
-local color_grey = {105, 106, 106}
-local color_lightgrey = {155, 173, 183}
-local color_black = {0, 0, 0}
-local color_brown = {102, 57, 49}
-local color_yellow = {251, 242, 54}
-
 local colors_DB32 = {
 	{0, 0, 0},
 	{34, 32, 52},
@@ -61,8 +50,24 @@ local colors_DB32 = {
 	{138, 111, 48}
 }
 
-local fire_colors = {color_brightred, color_orange, color_yellow, color_orange}
-local grey_colors = {color_white, color_white, color_white, color_lightgrey, color_grey, color_lightgrey}
+
+local letters_title = {
+	{"sprites/letters/'.png", 10, 17}, 		-- 1
+	{"sprites/letters/a.png", 33, 38}, 		-- 2
+	{"sprites/letters/b.png", 32, 40}, 		-- 3
+	{"sprites/letters/e.png", 36, 42},		-- 4
+	{"sprites/letters/i.png", 9, 39},		-- 5
+	{"sprites/letters/m.png", 44, 34},		-- 6
+	{"sprites/letters/n.png", 32, 41},		-- 7
+	{"sprites/letters/o.png", 33, 41},		-- 8
+	{"sprites/letters/r.png", 25, 40},		-- 9 
+	{"sprites/letters/s.png", 39, 40},		-- 10
+	{"sprites/letters/t.png", 26, 41},		-- 11
+	{"sprites/letters/u.png", 29, 38},		-- 12
+	{"sprites/letters/big_c.png", 48, 48},	-- 13
+	{"sprites/letters/big_r.png", 61, 68},	-- 14
+
+}
 
 
 -- shader effects
@@ -439,7 +444,13 @@ function Enemy_Drang.new(x, y, dx, dy, flags)
 end
 
 function Enemy_Drang:update(dt)
+	if math.sin(timer_global * 10) < 0 then
+		self.dy = -50 + game_dy
+	else
+		self.dy = 50 + game_dy
+	end
 	MoveableObject.update(self, dt)
+
 end
 
 local Projectile_Water = {}
@@ -817,6 +828,7 @@ end
 function love.load()
 	love.window.setTitle("CARMINE'S RETRIBUTION")
 	love.window.setIcon(love.image.newImageData("sprites/carmine/carmine_icon.png"))
+	load_startscreen()
 	mode = 'start'
 
 	-- timers
@@ -835,24 +847,32 @@ function love.load()
 			return vec4(1.0, 1.0, 1.0, pixel.a); // return modified pixel color
 		}
 	]]
+
+	
 end
 
 
 
 function load_player()
-	-- carmine
+	-- important attributes
 	player_max_health = 4
+	player_attack_speed = 0.25
+
+
+	-- carmine
 	carmine = MoveableObject.new(100, 200, 0, 0, 114, 208, 14, 7)
 	carmine.id = "carmine"
 	carmine.points = 1000
 	carmine.max_health = player_max_health
-	carmine.health = 1
-	carmine.attack_speed = 0.25
+	carmine.health = 4
+	carmine.attack_speed = player_attack_speed
 	carmine.attack_type = "double_water_shot"
 	carmine.secondshot = true
 	function carmine:update(dt)
 		MoveableObject.update(self, dt)
+		-- important attributes here
 		self.max_health = player_max_health
+		self.attack_speed = player_attack_speed
 	end
 	function carmine:shoot(dt)
 		if self.health <= 0 then
@@ -900,6 +920,73 @@ function load_player()
 	carmine_wings_right_sheet = load_image('sprites/wings/carmine_wings_right_sheet.png')
 	g = anim8.newGrid(100, 100, carmine_wings_right_sheet:getWidth(), carmine_wings_right_sheet:getHeight())
 	carmine_wings_right_animation = anim8.newAnimation(g('1-4', 1), 0.1)
+end
+
+function load_startscreen()
+	letters = {}
+	function create_letter(id, x, y, bottom_y)
+		local l = ParticleObject.new(x, y)
+		l.id = id
+		l.sheet = load_image(letters_title[id][1])
+		l.animation = initialize_animation(l.sheet, letters_title[id][2], letters_title[id][3], '1-1', 1000)
+		l.colliding = false
+		l.dy = 10
+		l.firstbounce = true
+		function l:update(dt)
+			self.x = (self.x + self.dx * dt)
+			self.y = (self.y + self.dy * dt)
+			if self.dy < 300 then
+				self.dy = self.dy + 300 * dt
+			end
+			if self.y < bottom_y then
+				self.colliding = false
+			end
+			if self.y > bottom_y and not self.colliding and self.firstbounce then
+				self.colliding = true
+				self.dy = -self.dy / 2
+				self.firstbounce = false
+			end
+
+			if self.y > bottom_y and not self.colliding and not self.firstbounce then
+				self.colliding = true
+				self.dy = -self.dy + 1
+			end
+			if self.y > bottom_y and self.colliding then
+				self.y = bottom_y
+			end
+			self.animation:update(dt)
+		end
+		table.insert(letters, l)
+	end
+
+	local startX = 100
+	local minY = 75
+	local maxY = 100
+	local height = 120
+	local carmine_letters = {13, 2, 9, 6, 5, 7, 4, 1, 10}
+	local retribution_letters = {14, 4, 11, 9, 5, 3, 12, 11, 5, 8, 7}
+
+	for i = 1, #carmine_letters do
+		if carmine_letters[i] == 1 then
+			create_letter(carmine_letters[i], startX, math.random(minY, maxY), height - 30)
+		else
+			create_letter(carmine_letters[i], startX, math.random(minY, maxY), height)
+		end
+		startX = startX + 3 + letters_title[carmine_letters[i]][2]
+	end
+
+	startX = 50
+	minY = 150
+	maxY = 200
+
+	for i = 1, #retribution_letters do
+		if retribution_letters[i] == 1 then
+			create_letter(retribution_letters[i], startX, math.random(minY, maxY), height - 30 + 100)
+		else
+			create_letter(retribution_letters[i], startX, math.random(minY, maxY), height + 100)
+		end
+		startX = startX + 3 + letters_title[retribution_letters[i]][2]
+	end
 end
 
 function load_levelscreen()
@@ -1037,6 +1124,15 @@ function update_enemies(dt)
 	end
 end
 
+function update_letters(dt)
+	for i = #letters, 1, -1 do
+		letters[i]:update(dt)
+		if mode ~= 'start' then
+			table.remove(letters, i)
+		end
+	end
+end
+
 function update_bullets(dt)
 	for i = #bullets, 1, -1 do
 		local bullet = bullets[i]
@@ -1166,7 +1262,7 @@ function update_game(dt)
 		timer_invulnerable = nil
 	end
 	-- shot timer
-	if timer_shot and timer_global - timer_shot > carmine.attack_speed then
+	if timer_shot and timer_global - timer_shot > player_attack_speed then
 		timer_shot = nil
 	end
 
@@ -1260,15 +1356,11 @@ function update_game(dt)
 			spawn_enemy(Enemy_Gross, game_width + 50, math.random(50, game_height - 50))
 		end
 	end
-	
-
-
-	
-
 end
 
 function update_start(dt)
 	-- update function for start screen
+	update_letters(dt)
 	if love.keyboard.isDown('space') and not key_space_pressed then
 		mode = 'game'
 		key_space_pressed = true
@@ -1375,6 +1467,14 @@ function draw_explosions()
 		end
 	end
 	set_draw_color(22)
+end
+
+function draw_letters()
+	for i = 1, #letters do
+		local letter = letters[i]
+		set_draw_color(22)
+		letter.animation:draw(letter.sheet, math.floor(letter.x), math.floor(letter.y) - letters_title[letter.id][3])
+	end
 end
 
 function draw_particles()
@@ -1490,6 +1590,7 @@ function love.draw()
 		if mode == 'game' then
 			draw_game()
 		elseif mode == 'start' then
+			draw_letters()
 			draw_start()
 		elseif mode == 'gameover' then
 			draw_game()
