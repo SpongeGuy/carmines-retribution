@@ -130,6 +130,23 @@ function get_collision(obj1, obj2)
 	return true
 end
 
+function get_vector(obj1, obj2, multiplier, normalized)
+	local norm = true
+	if normalized == false then norm = false end
+
+	local dx = obj2.x - obj1.x
+	local dy = obj2.y - obj1.y
+
+	if norm then
+		local magnitude = math.sqrt(dx * dx + dy * dy)
+
+		dx = dx / magnitude
+		dy = dy / magnitude
+	end
+
+	return dx * multiplier, dy * multiplier
+end
+
 function load_image(path)
 	local info = love.filesystem.getInfo(path)
 	if info then
@@ -492,13 +509,19 @@ function Powerup_Lil_Gabbro.new(x, y, dx, dy)
 	self.id = "powerup_lil_gabbro"
 	self.points = 1000
 	self.sound = love.audio.newSource("sounds/powerup_super.wav", "static")
+	self.timer = timer_global
 	self.seed = math.random(-3.14, 3.14)
 	return self
 end
 
 function Powerup_Lil_Gabbro:update(dt)
-	self.dx = math.sin(timer_global / 2 + self.seed) * 200 + (game_dx / 2)
-	self.dy = math.sin(timer_global + self.seed) * 100
+	if carmine and timer_global - self.timer < 1 then
+		self.dx, self.dy = get_vector(self, carmine, 1, false)
+	else
+		self.dx = math.sin(timer_global / 2 + self.seed) * 200 + (game_dx / 2)
+		self.dy = math.sin(timer_global + self.seed) * 100
+	end
+	
 	
 	self.x = (self.x + self.dx * dt)
 	self.y = (self.y + self.dy * dt)
