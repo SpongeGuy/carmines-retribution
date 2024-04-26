@@ -233,8 +233,8 @@ function MoveableObject:update(dt)
 	end
 end
 
-function MoveableObject:draw_hitbox()
-	love.graphics.rectangle('line', self.hitx, self.hity, self.hitw, self.hith)
+function draw_hitbox(obj)
+	love.graphics.rectangle('line', obj.hitx, obj.hity, obj.hitw, obj.hith)
 end
 
 function MoveableObject:control(speed, left, right, up, down)
@@ -273,7 +273,7 @@ function Graphic_Heart.new(x, y, dx, dy)
 	setmetatable(self, Graphic_Heart)
 	self.id = "heart_graphic"
 	self.sheet = load_image("sprites/heart/heart_alt_sheet.png")
-	self.animation = initialize_animation(self.sheet, 11, 11, '1-2', 1)
+	self.animation = initialize_animation(self.sheet, 11, 11, '1-2', 100)
 	self.full = true
 	return self
 end
@@ -334,6 +334,7 @@ function Enemy_Rock.new(x, y, dx, dy, flags)
 		death_effect_shockwave,
 		death_effect_sound_blockhit,
 		death_effect_break,
+		death_effect_spawn_lilgabbro,
 	}
 	
 	return self
@@ -384,10 +385,14 @@ function Enemy_Gross:update(dt)
 		self.copying = false
 		table.insert(enemies, copy)
 	end
-	if self.x < 100 and not self.switched then
+	if self.x < 100 and not self.switched and self.y < game_height / 2 then
 		self.switched = true
 		self.dx = -self.dx * 0.707
 		self.dy = self.dx
+	elseif self.x < 100 and not self.switched and self.y >= game_height / 2 then
+		self.switched = true
+		self.dx = -self.dx * 0.707
+		self.dy = -self.dx
 	end
 end
 
@@ -409,6 +414,40 @@ function Projectile_Water.new(x, y, dx, dy, friendly)
 	self.id = "water_drop"
 	self.health = 1
 	return self
+end
+
+local Powerup_Lil_Gabbro = {}
+Powerup_Lil_Gabbro.__index = Powerup_Lil_Gabbro
+
+setmetatable(Powerup_Lil_Gabbro, {__index = MoveableObject})
+
+function Powerup_Lil_Gabbro.new(x, y, dx, dy)
+	local self = MoveableObject.new(x, y, dx, dy, hitx, hity, hitw, hith, flags)
+	setmetatable(self, Powerup_Lil_Gabbro)
+	self.hitx = x
+	self.hity = y
+	self.hitw = 17
+	self.hith = 15
+	self.dx = dx
+	self.dy = dy
+	self.sheet = load_image("sprites/pickups/lil_gabbron-sheet.png")
+	self.animation = initialize_animation(self.sheet, 17, 15, '1-2', 0.1)
+	self.id = "projectile_dingle"
+	self.points = 1000
+	self.sound = love.audio.newSource("sounds/powerup_super.wav", "static")
+	self.seed = math.random(-3.14, 3.14)
+	return self
+end
+
+function Powerup_Lil_Gabbro:update(dt)
+	self.dy = math.sin(timer_global + self.seed) * 100
+	self.dx = math.sin(timer_global / 2 + self.seed) * 100 + (game_dx / 2)
+	self.x = (self.x + self.dx * dt)
+	self.y = (self.y + self.dy * dt)
+
+	self.hitx = self.hitx + self.dx * dt
+	self.hity = self.hity + self.dy * dt
+	self.animation:update(dt)
 end
 
 
@@ -439,6 +478,12 @@ function spawn_enemy(enemy, x, y, dx, dy, flags)
 	local e = enemy.new(x, y, dx, dy, flags)
 
 	table.insert(enemies, e)
+end
+
+function spawn_powerup(powerup, x, y, dx, dy, flags)
+	flags = flags or {}
+	local e = powerup.new(x, y, dx, dy, flags.points)
+	table.insert(powerups, e)
 end
 
 --  ____  ____  ____  ____  ___  ____  ___ 
@@ -491,11 +536,23 @@ function death_effect_sound_blockhit(enemy)
 	sound:play()
 end
 
-function effect_points(x, y, dx, dy, value)
+function death_effect_spawn_lilgabbro(enemy)
+	local pointX = enemy.x + enemy.hitw/2
+	local pointY = enemy.y + enemy.hith/2
+
+	local value = math.random(1, 100)
+	if value < 25 then
+		spawn_powerup(Powerup_Lil_Gabbro, pointX, pointY)
+		local sound = love.audio.newSource("sounds/poink.wav", "static")
+		sound:play()
+	end
+end
+
+function effect_points(x, y, dx, dy, points)
 	local pp = ParticleObject.new(x, y, dx, dy, "effect_points")
-	pp.value = value
+	pp.points = points
 	pp.timer = pp.timer + 0.5
-	score = score + value
+	score = score + points
 	table.insert(particles, pp)
 end
 
@@ -673,7 +730,8 @@ function load_player()
 	carmine.max_health = 4
 	carmine.health = 4
 	carmine.attack_speed = 0.25
-	carmine.attack_type = "single_water_shot"
+	carmine.attack_type = "double_water_shot"
+	carmine.secondshot = true
 	function carmine:shoot(dt)
 		-- shot effect_burst data
 		shot_circ_x = carmine.x + 30
@@ -690,9 +748,12 @@ function load_player()
 			elseif carmine.attack_type == "double_water_shot" then
 				double_water_shot(math.floor(carmine.x + 10), math.floor(carmine.y), 550, 0, true)
 			end
+			if carmine.secondshot then
+				timer_secondshot = timer_global
+			end
 		end
 
-		if timer_secondshot and timer_global - timer_secondshot > 0.1 then
+		if timer_secondshot and timer_global - timer_secondshot > carmine.attack_speed/2 then
 			local water = Projectile_Water.new(math.floor(carmine.x + 10), math.floor(carmine.y), 550, 0, true)
 			table.insert(bullets, water)
 			timer_secondshot = nilv 
@@ -777,6 +838,7 @@ function reset_game()
 	enemies = {}
 	explosions = {}
 	particles = {}
+	powerups = {}
 
 	-- ui
 	score = 0
@@ -801,6 +863,7 @@ function reset_game()
 	
 
 	spawn_enemy(Enemy_Rock, game_width + 20, 150)
+	spawn_powerup(Powerup_Lil_Gabbro, game_width + 20, 200, game_dx / 2, game_dy / 2)
 end
 
 
@@ -877,6 +940,13 @@ function update_explosions(dt)
 	end
 end
 
+function update_powerups(dt)
+	for i = #powerups, 1, -1 do
+		local powerup = powerups[i]
+		powerup:update(dt)
+	end
+end
+
 function update_particles(dt)
 	for i = #particles, 1, -1 do
 		local particle = particles[i]
@@ -947,6 +1017,7 @@ function update_game(dt)
 	update_background(dt)
 	update_enemies(dt)
 	update_player(dt)
+	update_powerups(dt)
 	
 	update_explosions(dt)
 	update_particles(dt)
@@ -969,9 +1040,6 @@ function update_game(dt)
 				end
 				enemies[i].flash = 0.05
 
-
-				-- local bullet_effect_burst = ExplosionObject.new(bullets[p].x + bullets[p].hitw/2, bullets[p].y + bullets[p].hith/2, 30, 200, bullets[p].dx * 0.05, bullets[p].dy * 0.05)
-				--effect_burst(bullets[p].x + bullets[p].hitw/2, bullets[p].y + bullets[p].hith/2, bullets[p].dx * 0.05, bullets[p].dy * 0.05)
 			end
 		end
 	end
@@ -1007,14 +1075,30 @@ function update_game(dt)
 			end
 		end
 	end
-	
+	for i = #powerups, 1, -1 do -- carmine collision with powerup
+		local powerup = powerups[i]
+		if get_collision(carmine, powerup) then
+			effect_shockwave(powerup.x + powerup.hitw / 2, powerup.y + powerup.hith / 2, powerup.dx / 2, powerup.dy / 2)
+			effect_points(powerup.x + powerup.hitw / 2, powerup.y + powerup.hith / 2, powerup.dx / 2, powerup.dy / 2, powerup.points)
+			powerup.sound:play()
 
-	-- if #enemies < 7 then
-	-- 	local rock = Enemy_Rock.new(game_width + 50, math.random(50, game_height - 50), -150, 0)
-	-- 	table.insert(enemies, rock)
-	-- end
+			table.remove(powerups, i)
+		end
+	end
+	
+	ecount = 1
+	if #enemies < 7 then
+		ecount = ecount + 1
+		spawn_enemy(Enemy_Rock, game_width + 50, math.random(50, game_height - 50))
+		
+	end
+	if ecount % 2 == 0 then
+		spawn_enemy(Enemy_Gross, game_width + 50, math.random(50, game_height - 50))
+	end
+
 
 	log1:log(logstring)
+
 end
 
 function update_start(dt)
@@ -1095,6 +1179,13 @@ function draw_bullets()
 	end
 end
 
+function draw_powerups()
+	for i = 1, #powerups do
+		local powerup = powerups[i]
+		powerup.animation:draw(powerup.sheet, math.floor(powerup.x), math.floor(powerup.y))
+	end
+end
+
 function draw_explosions()
 	for i = 1, #explosions do
 		local explosion = explosions[i]
@@ -1124,7 +1215,7 @@ function draw_particles()
 		local particle = particles[i]
 		if particle.id == "effect_points" then
 			set_draw_color(blink({21, 22, 23, 20, 10, 11, 22}))
-			love.graphics.print(particle.value, math.floor(particle.x), math.floor(particle.y))
+			love.graphics.print(particle.points, math.floor(particle.x), math.floor(particle.y))
 			set_draw_color(22)
 		elseif particle.id == "effect_explosion" then
 			local time_elapsed = timer_global - particle.timer
@@ -1153,7 +1244,7 @@ function draw_player()
 		carmine_body_animation:draw(carmine_body_sheet, math.floor(carmine.x), math.floor(carmine.y))
 		carmine_wings_right_animation:draw(carmine_wings_left_sheet, math.floor(carmine.x - 45), math.floor(carmine.y - 35))
 	else
-		if math.sin(timer_global * 50) < 0.75 then
+		if math.sin(timer_global * 50) < 0.5 then
 			carmine_wings_left_animation:draw(carmine_wings_right_sheet, math.floor(carmine.x - 45), math.floor(carmine.y - 35))
 			carmine_body_animation:draw(carmine_body_sheet, math.floor(carmine.x), math.floor(carmine.y))
 			carmine_wings_right_animation:draw(carmine_wings_left_sheet, math.floor(carmine.x - 45), math.floor(carmine.y - 35))
@@ -1181,6 +1272,7 @@ function draw_game()
 	draw_enemies()
 	draw_bullets()
 	draw_explosions()
+	draw_powerups()
 	
 	draw_player()
 
