@@ -497,8 +497,9 @@ function Powerup_Lil_Gabbro.new(x, y, dx, dy)
 end
 
 function Powerup_Lil_Gabbro:update(dt)
+	self.dx = math.sin(timer_global / 2 + self.seed) * 200 + (game_dx / 2)
 	self.dy = math.sin(timer_global + self.seed) * 100
-	self.dx = math.sin(timer_global / 2 + self.seed) * 100 + (game_dx / 2)
+	
 	self.x = (self.x + self.dx * dt)
 	self.y = (self.y + self.dy * dt)
 
@@ -510,6 +511,7 @@ end
 function Powerup_Lil_Gabbro:effect(dt)
 	effect_shockwave(self.x + (self.hith / 2), self.y + self.hitw / 2, self.dx / 2, self.dy / 2)
 	effect_points(self.x + self.hith / 2, self.y + self.hitw / 2, self.dx / 2, self.dy / 2, self.points)
+	effect_message(self.x + self.hith / 2, self.y + self.hitw / 2, self.dx / 2 + math.random(-50, 50), self.dy / 2 + math.random(-50, 50), "Nice!")
 	self.sound:play()
 end
 
@@ -551,6 +553,7 @@ function Powerup_Heart:effect(dt)
 		carmine.health = carmine.health + 1
 		effect_shockwave(ui_hearts_x + (7 * (carmine.health - 1)), ui_hearts_y + 7, 0, 0, 20, 400)
 	end
+	effect_message(self.x + self.hith / 2, self.y + self.hitw / 2, self.dx / 2 + math.random(-50, 50), self.dy / 2 + math.random(-50, 50), "Health up!")
 	effect_shockwave(self.x + (self.hith / 2), self.y + self.hitw / 2, self.dx / 2, self.dy / 2)
 	effect_points(self.x + self.hith / 2, self.y + self.hitw / 2, self.dx / 2, self.dy / 2, self.points)
 	
@@ -681,6 +684,13 @@ function effect_points(x, y, dx, dy, points, apply)
 		score = score + points 
 	end
 	table.insert(particles, pp)
+end
+
+function effect_message(x, y, dx, dy, text)
+	local msg = ParticleObject.new(x, y, dx, dy, "effect_points")
+	msg.points = text
+	msg.timer = msg.timer + 0.5
+	table.insert(particles, msg)
 end
 
 function effect_shockwave(x, y, dx, dy, r, dr, da)
