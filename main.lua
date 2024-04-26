@@ -397,6 +397,46 @@ function Enemy_Gross:update(dt)
 	end
 end
 
+local Enemy_Drang = {}
+Enemy_Drang.__index = Enemy_Drang
+
+setmetatable(Enemy_Drang, {__index = MoveableObject})
+
+function Enemy_Drang.new(x, y, dx, dy, flags)
+	local flags = flags or {}
+	local self = MoveableObject.new(x, y, dx, dy)
+	setmetatable(self, Enemy_Drang)
+	self.hitx = x
+	self.hity = y
+	self.dx = dx or game_dx
+	self.dy = dy or game_dy
+	self.hitw = 36
+	self.hith = 40
+	self.sheet = load_image("sprites/drang/drang1-sheet.png")
+	self.animation = initialize_animation(self.sheet, 36, 40, '1-5', 0.1)
+	self.friendly = false
+	self.health = 3
+	self.points = 150
+	self.id = "forked_drang"
+
+	self.death_effects = {
+		death_effect_points, 
+		death_effect_burst, 
+		death_effect_explode, 
+		death_effect_shockwave,
+		death_effect_sound_blockhit,
+		death_effect_break,
+		death_effect_spawn_lilgabbro,
+		death_effect_spawn_heart,
+	}
+
+	return self
+end
+
+function Enemy_Drang:update(dt)
+	MoveableObject.update(self, dt)
+end
+
 local Projectile_Water = {}
 Projectile_Water.__index = Projectile_Water
 
@@ -592,7 +632,7 @@ function death_effect_spawn_lilgabbro(enemy)
 	local pointY = enemy.y + enemy.hith/2
 
 	local value = math.random(1, 100)
-	if value < 100 then
+	if value < 25 then
 		spawn_powerup(Powerup_Lil_Gabbro, pointX, pointY)
 		local sound = love.audio.newSource("sounds/poink.wav", "static")
 		sound:play()
@@ -604,7 +644,7 @@ function death_effect_spawn_heart(enemy)
 	local pointY = enemy.y + enemy.hith/2
 
 	local value = math.random(1, 100)
-	if value < 100 then
+	if value < 5 then
 		spawn_powerup(Powerup_Heart, pointX, pointY)
 		local sound = love.audio.newSource("sounds/poink.wav", "static")
 		sound:play()
@@ -791,7 +831,7 @@ function load_player()
 	carmine = MoveableObject.new(100, 200, 0, 0, 114, 208, 14, 7)
 	carmine.id = "carmine"
 	carmine.max_health = 4
-	carmine.health = 4
+	carmine.health = 1
 	carmine.attack_speed = 0.25
 	carmine.attack_type = "double_water_shot"
 	carmine.secondshot = true
@@ -903,6 +943,8 @@ function reset_game()
 	particles = {}
 	powerups = {}
 
+	ecount = 1
+
 	-- ui
 	score = 0
 	load_player()
@@ -925,7 +967,7 @@ function reset_game()
 	end
 	
 
-	spawn_enemy(Enemy_Rock, game_width + 20, 150)
+	spawn_enemy(Enemy_Drang, game_width + 20, 150)
 	spawn_powerup(Powerup_Heart, game_width + 20, 200, game_dx / 2, game_dy / 2)
 end
 
@@ -1006,7 +1048,11 @@ end
 function update_powerups(dt)
 	for i = #powerups, 1, -1 do
 		local powerup = powerups[i]
+		local powerup_left_game_area = (powerup.x > (game_width) + 200 or powerup.x < -200) or (powerup.y > (game_height) + 200 or powerup.y < -200)
 		powerup:update(dt)
+		if powerup_left_game_area then
+			table.remove(powerups, i)
+		end
 	end
 end
 
@@ -1014,7 +1060,8 @@ function update_particles(dt)
 	for i = #particles, 1, -1 do
 		local particle = particles[i]
 		particle:update(dt)
-		if timer_global - particle.timer > 2 + particle.seed then
+		local particle_left_game_area = (particle.x > (game_width) + 200 or particle.x < -200) or (particle.y > (game_height) + 200 or particle.y < -200)
+		if (timer_global - particle.timer > 2 + particle.seed) or particle_left_game_area then
 			table.remove(particles, i)
 		end
 	end
@@ -1085,8 +1132,8 @@ function update_game(dt)
 	update_explosions(dt)
 	update_particles(dt)
 	update_hearts(dt)
-	
-	
+
+
 	
 	-- collision effects
 	for i = #enemies, 1, -1 do -- friendly bullet collide with enemy
@@ -1147,15 +1194,15 @@ function update_game(dt)
 		end
 	end
 	
-	ecount = 1
+	
 	if #enemies < 7 then
 		ecount = ecount + 1
 		spawn_enemy(Enemy_Rock, game_width + 50, math.random(50, game_height - 50))
-		
+		if ecount % 7 == 0 then
+			spawn_enemy(Enemy_Gross, game_width + 50, math.random(50, game_height - 50))
+		end
 	end
-	if ecount % 2 == 0 then
-		spawn_enemy(Enemy_Gross, game_width + 50, math.random(50, game_height - 50))
-	end
+	
 
 
 	log1:log(logstring)
