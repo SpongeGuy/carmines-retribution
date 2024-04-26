@@ -209,7 +209,6 @@ end
 
 function MoveableObject:update(dt)
 	-- update movement
-
 	self.x = self.x + self.dx * dt
 	self.y = self.y + self.dy * dt
 	if self.hitx and self.hity then
@@ -237,24 +236,29 @@ function draw_hitbox(obj)
 	love.graphics.rectangle('line', obj.hitx, obj.hity, obj.hitw, obj.hith)
 end
 
-function MoveableObject:control(speed, left, right, up, down)
-	self.dx = 0
-	self.dy = 0
-	if love.keyboard.isDown(left) and self.x > 0 then
-		self.dx = -speed
+function control(obj, speed, left, right, up, down)
+	if obj.health <= 0 then
+		obj.dx = 0
+		obj.dy = 0
+		return
 	end
-	if love.keyboard.isDown(right) and self.x < game_width - 35 then
-		self.dx = speed
+	obj.dx = 0
+	obj.dy = 0
+	if love.keyboard.isDown(left) and obj.x > 0 then
+		obj.dx = -speed
 	end
-	if love.keyboard.isDown(up) and self.y > 0 then
-		self.dy = -speed
+	if love.keyboard.isDown(right) and obj.x < game_width - 35 then
+		obj.dx = speed
 	end
-	if love.keyboard.isDown(down) and self.y < game_height - 23 then
-		self.dy = speed
+	if love.keyboard.isDown(up) and obj.y > 0 then
+		obj.dy = -speed
 	end
-	if not (self.dx == 0 and self.dy == 0) then
-		self.dx = self.dx * 0.707
-		self.dy = self.dy * 0.707
+	if love.keyboard.isDown(down) and obj.y < game_height - 23 then
+		obj.dy = speed
+	end
+	if not (obj.dx == 0 and obj.dy == 0) then
+		obj.dx = obj.dx * 0.707
+		obj.dy = obj.dy * 0.707
 	end
 end
 
@@ -294,6 +298,7 @@ setmetatable(Player, {__index = MoveableObject})
 
 function Player.new(x, y, dx, dy, hitx, hity, hitw, hith, flags)
 	local self = MoveableObject.new(x, y, dx, dy, hitx, hity, hitw, hith, flags)
+	setmetatable(self, Player)
 	self.texture_height = hith or 0
 	self.texture_width = hitw or 0
 	self.friendly = true
@@ -582,13 +587,7 @@ end
 --  )__)  )__)  )__)  )__)( (__   )(  \__ \
 -- (____)(__)  (__)  (____)\___) (__) (___/
 
-function death_effect_points(enemy)
-	local pointX = enemy.x + enemy.hitw/2
-	local pointY = enemy.y + enemy.hith/2
-	local points = enemy.points
-	
-	effect_points(pointX, pointY, enemy.dx / 2.5 + math.random(-50, 50), math.random(-50, 50), points)
-end
+
 
 function death_effect_explode(enemy)
 	local pointX = enemy.x + enemy.hitw/2
@@ -651,11 +650,25 @@ function death_effect_spawn_heart(enemy)
 	end
 end
 
-function effect_points(x, y, dx, dy, points)
+function death_effect_points(enemy, apply)
+	local pointX = enemy.x + enemy.hitw/2
+	local pointY = enemy.y + enemy.hith/2
+	local points = enemy.points
+	
+	effect_points(pointX, pointY, enemy.dx / 2.5 + math.random(-50, 50), math.random(-50, 50), points, apply)
+end
+
+function effect_points(x, y, dx, dy, points, apply)
+	local a = true
+	if apply == false then
+		a = false
+	end
 	local pp = ParticleObject.new(x, y, dx, dy, "effect_points")
 	pp.points = points
 	pp.timer = pp.timer + 0.5
-	score = score + points
+	if a then 
+		score = score + points 
+	end
 	table.insert(particles, pp)
 end
 
@@ -828,14 +841,23 @@ end
 
 function load_player()
 	-- carmine
+	player_max_health = 4
 	carmine = MoveableObject.new(100, 200, 0, 0, 114, 208, 14, 7)
 	carmine.id = "carmine"
-	carmine.max_health = 4
+	carmine.points = 1000
+	carmine.max_health = player_max_health
 	carmine.health = 1
 	carmine.attack_speed = 0.25
 	carmine.attack_type = "double_water_shot"
 	carmine.secondshot = true
+	function carmine:update(dt)
+		MoveableObject.update(self, dt)
+		self.max_health = player_max_health
+	end
 	function carmine:shoot(dt)
+		if self.health <= 0 then
+			return
+		end
 		-- shot effect_burst data
 		shot_circ_x = carmine.x + 30
 		shot_circ_y = carmine.y + 10
@@ -880,7 +902,7 @@ function load_player()
 	carmine_wings_right_animation = anim8.newAnimation(g('1-4', 1), 0.1)
 end
 
-function load_ui()
+function load_levelscreen()
 	-- level info
 	ui_label_level_num_text = "WAVE 1"
 	ui_label_level_num = love.graphics.newText(font_gamer_med, ui_label_level_num_text)
@@ -891,7 +913,23 @@ function load_ui()
 	ui_label_level_name = love.graphics.newText(font_gamer_med, ui_label_level_name_text)
 	ui_label_level_name_x = center_text(ui_label_level_name_text)
 	ui_label_level_name_y = (game_height / 2) - 40
+end
 
+function load_gameover()
+	ui_label_deathmessage_text = "YOU SUCK"
+	ui_label_deathmessage = love.graphics.newText(font_gamer_med, ui_label_deathmessage_text)
+	ui_label_deathmessage_x = center_text(ui_label_deathmessage_text)
+	ui_label_deathmessage_y = (game_height / 2) - 60
+
+	ui_label_angry_text = "NOT WORTHY OF CARMINE"
+	ui_label_angry = love.graphics.newText(font_gamer_med, ui_label_angry_text)
+	ui_label_angry_x = center_text(ui_label_angry_text)
+	ui_label_angry_y = (game_height / 2) - 40
+end
+
+function load_ui()
+	load_levelscreen()
+	load_gameover()
 	-- name
 	ui_label_name = love.graphics.newText(font_gamer_med, "CARMINE")
 	ui_label_name_x = 4
@@ -904,8 +942,8 @@ function load_ui()
 	hearts = {}
 	ui_hearts_x = ui_label_life_x
 	ui_hearts_y = ui_label_life_y + ui_label_life:getHeight()
-	ui_hearts_length = 13 * carmine.max_health
-	for i = 1, carmine.max_health do
+	ui_hearts_length = 13 * player_max_health
+	for i = 1, player_max_health do
 		table.insert(hearts, Graphic_Heart.new(ui_hearts_x + (12 * (i - 1)), ui_hearts_y, 0, 0))
 	end
 	
@@ -1016,9 +1054,11 @@ function update_hearts(dt)
 	for i = #hearts, 1, -1 do
 		hearts[i].full = false
 	end
-	for i = 1, carmine.max_health do
-		if i <= carmine.health then
+	for i = 1, player_max_health do
+		if carmine and i <= carmine.health then
 			hearts[i].full = true
+		else
+			hearts[i].full = false
 		end
 		hearts[i]:update(dt)
 	end
@@ -1068,10 +1108,23 @@ function update_particles(dt)
 end
 
 function update_player(dt)
+	if not carmine then
+		return
+	end
+	if carmine.health <= 0 then
+		death_effect_explode(carmine)
+		death_effect_break(carmine)
+		death_effect_shockwave(carmine)
+		death_effect_burst(carmine)
+		death_effect_points(carmine, false)
+		carmine = nil
+		return
+	end
 	carmine_wings_left_animation:update(dt)
 	carmine_wings_right_animation:update(dt)
-	carmine:control(250, "a", "d", "w", "s")
+	control(carmine, 250, "a", "d", "w", "s")
 	carmine:update(dt)
+	carmine:shoot(dt)
 	if carmine.dy < 0 then
 		carmine_body_animation:gotoFrame(3)
 	elseif carmine.dy > 0 then
@@ -1097,9 +1150,8 @@ function update_game(dt)
 		timer_levelselect_delay = nil
 	end
 
-	if carmine.health <= 0 then
+	if carmine and carmine.health <= 0 then
 		mode = 'gameover'
-		reset_game()
 	end
 
 	if love.keyboard.isDown('r') then
@@ -1122,7 +1174,6 @@ function update_game(dt)
 	
 	
 	-- collection updates
-	carmine:shoot(dt)
 	update_bullets(dt)
 	update_background(dt)
 	update_enemies(dt)
@@ -1153,6 +1204,13 @@ function update_game(dt)
 			end
 		end
 	end
+
+	log1:log(logstring)
+
+	if not carmine then
+		return
+	end
+
 	for i = 1, #enemies do -- enemy collide with player
 		if not enemies[i].friendly and get_collision(carmine, enemies[i]) then
 			if not timer_invulnerable then
@@ -1205,7 +1263,7 @@ function update_game(dt)
 	
 
 
-	log1:log(logstring)
+	
 
 end
 
@@ -1238,6 +1296,7 @@ function love.update(dt)
 		update_start(dt)
 	elseif mode == 'gameover' then
 		timer_blink = timer_blink + (1 * dt) * 15
+		update_game(dt)
 		update_gameover(dt)
 	elseif mode == 'levelscreen' then
 		update_levelscreen(dt)
@@ -1347,6 +1406,9 @@ function draw_particles()
 end
 
 function draw_player()
+	if not carmine then
+		return
+	end
 	if not timer_invulnerable then
 		carmine_wings_left_animation:draw(carmine_wings_right_sheet, math.floor(carmine.x - 45), math.floor(carmine.y - 35))
 		carmine_body_animation:draw(carmine_body_sheet, math.floor(carmine.x), math.floor(carmine.y))
@@ -1398,6 +1460,13 @@ function draw_levelscreen()
 	set_draw_color(22)
 end
 
+function draw_gameover()
+	set_draw_color(blink({9, 6, 28}))
+	love.graphics.draw(ui_label_deathmessage, ui_label_deathmessage_x, ui_label_deathmessage_y)
+	love.graphics.draw(ui_label_angry, ui_label_angry_x, ui_label_angry_y)
+	set_draw_color(22)
+end
+
 -- returns x value
 function center_text(text)
 	local x = (game_width / 2) - math.floor((love.graphics.getFont():getWidth(text)) / 2)
@@ -1412,13 +1481,7 @@ function draw_start()
 	love.graphics.print(text2, center_text(text2), (game_height / 2 ) - 40)
 end
 
-function draw_gameover()
-	set_draw_color(blink({9, 6, 28}))
-	local text1 = "YOU SUCK"
-	local text2 = "NOT WORTHY OF CARMINE"
-	love.graphics.print(text1, (game_width / 2) - math.floor(font_consolas:getWidth(text1) / 2.2), (game_height / 2) - 60)
-	love.graphics.print(text2, (game_width / 2) - math.floor(font_consolas:getWidth(text2) / 2.2), (game_height / 2) - 40)
-end
+
 
 
 
@@ -1429,6 +1492,7 @@ function love.draw()
 		elseif mode == 'start' then
 			draw_start()
 		elseif mode == 'gameover' then
+			draw_game()
 			draw_gameover()
 		elseif mode == 'levelscreen' then
 			draw_levelscreen()
