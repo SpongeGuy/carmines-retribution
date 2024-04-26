@@ -335,6 +335,7 @@ function Enemy_Rock.new(x, y, dx, dy, flags)
 		death_effect_sound_blockhit,
 		death_effect_break,
 		death_effect_spawn_lilgabbro,
+		death_effect_spawn_heart,
 	}
 	
 	return self
@@ -422,7 +423,7 @@ Powerup_Lil_Gabbro.__index = Powerup_Lil_Gabbro
 setmetatable(Powerup_Lil_Gabbro, {__index = MoveableObject})
 
 function Powerup_Lil_Gabbro.new(x, y, dx, dy)
-	local self = MoveableObject.new(x, y, dx, dy, hitx, hity, hitw, hith, flags)
+	local self = MoveableObject.new(x, y, dx, dy)
 	setmetatable(self, Powerup_Lil_Gabbro)
 	self.hitx = x
 	self.hity = y
@@ -432,7 +433,7 @@ function Powerup_Lil_Gabbro.new(x, y, dx, dy)
 	self.dy = dy
 	self.sheet = load_image("sprites/pickups/lil_gabbron-sheet.png")
 	self.animation = initialize_animation(self.sheet, 17, 15, '1-2', 0.1)
-	self.id = "projectile_dingle"
+	self.id = "powerup_lil_gabbro"
 	self.points = 1000
 	self.sound = love.audio.newSource("sounds/powerup_super.wav", "static")
 	self.seed = math.random(-3.14, 3.14)
@@ -448,6 +449,56 @@ function Powerup_Lil_Gabbro:update(dt)
 	self.hitx = self.hitx + self.dx * dt
 	self.hity = self.hity + self.dy * dt
 	self.animation:update(dt)
+end
+
+function Powerup_Lil_Gabbro:effect(dt)
+	effect_shockwave(self.x + (self.hith / 2), self.y + self.hitw / 2, self.dx / 2, self.dy / 2)
+	effect_points(self.x + self.hith / 2, self.y + self.hitw / 2, self.dx / 2, self.dy / 2, self.points)
+	self.sound:play()
+end
+
+local Powerup_Heart = {}
+Powerup_Heart.__index = Powerup_Heart
+
+setmetatable(Powerup_Heart, {__index = MoveableObject})
+
+function Powerup_Heart.new(x, y, dx, dy)
+	local self = MoveableObject.new(x, y, dx, dy)
+	setmetatable(self, Powerup_Heart)
+	self.hitx = x
+	self.hity = y
+	self.hitw = 26
+	self.hith = 26
+	self.dx = dx or game_dx / 2
+	self.dy = dy
+	self.sheet = load_image("sprites/pickups/smol_cheese.png")
+	self.animation = initialize_animation(self.sheet, 26, 26, '1-1', 100)
+	self.id = "powerup_heart"
+	self.points = 250
+	self.sound = love.audio.newSource("sounds/ploop.wav", "static")
+	self.seed = math.random(-3.14, 3.14)
+	return self
+end
+
+function Powerup_Heart:update(dt)
+	self.dy = math.sin(timer_global + self.seed) * 100
+	self.x = (self.x + self.dx * dt)
+	self.y = (self.y + self.dy * dt)
+
+	self.hitx = self.hitx + self.dx * dt
+	self.hity = self.hity + self.dy * dt
+	self.animation:update(dt)
+end
+
+function Powerup_Heart:effect(dt)
+	if carmine.health < carmine.max_health then
+		carmine.health = carmine.health + 1
+		effect_shockwave(ui_hearts_x + (7 * (carmine.health - 1)), ui_hearts_y + 7, 0, 0, 20, 400)
+	end
+	effect_shockwave(self.x + (self.hith / 2), self.y + self.hitw / 2, self.dx / 2, self.dy / 2)
+	effect_points(self.x + self.hith / 2, self.y + self.hitw / 2, self.dx / 2, self.dy / 2, self.points)
+	
+	self.sound:play()
 end
 
 
@@ -541,8 +592,20 @@ function death_effect_spawn_lilgabbro(enemy)
 	local pointY = enemy.y + enemy.hith/2
 
 	local value = math.random(1, 100)
-	if value < 25 then
+	if value < 100 then
 		spawn_powerup(Powerup_Lil_Gabbro, pointX, pointY)
+		local sound = love.audio.newSource("sounds/poink.wav", "static")
+		sound:play()
+	end
+end
+
+function death_effect_spawn_heart(enemy)
+	local pointX = enemy.x + enemy.hitw/2
+	local pointY = enemy.y + enemy.hith/2
+
+	local value = math.random(1, 100)
+	if value < 100 then
+		spawn_powerup(Powerup_Heart, pointX, pointY)
 		local sound = love.audio.newSource("sounds/poink.wav", "static")
 		sound:play()
 	end
@@ -863,7 +926,7 @@ function reset_game()
 	
 
 	spawn_enemy(Enemy_Rock, game_width + 20, 150)
-	spawn_powerup(Powerup_Lil_Gabbro, game_width + 20, 200, game_dx / 2, game_dy / 2)
+	spawn_powerup(Powerup_Heart, game_width + 20, 200, game_dx / 2, game_dy / 2)
 end
 
 
@@ -1078,9 +1141,7 @@ function update_game(dt)
 	for i = #powerups, 1, -1 do -- carmine collision with powerup
 		local powerup = powerups[i]
 		if get_collision(carmine, powerup) then
-			effect_shockwave(powerup.x + powerup.hitw / 2, powerup.y + powerup.hith / 2, powerup.dx / 2, powerup.dy / 2)
-			effect_points(powerup.x + powerup.hitw / 2, powerup.y + powerup.hith / 2, powerup.dx / 2, powerup.dy / 2, powerup.points)
-			powerup.sound:play()
+			powerup:effect(dt)
 
 			table.remove(powerups, i)
 		end
