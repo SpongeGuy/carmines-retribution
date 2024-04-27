@@ -341,6 +341,7 @@ setmetatable(Enemy_Rock, {__index = MoveableObject})
 function Enemy_Rock.new(x, y, dx, dy, flags)
 	local flags = flags or {}
 	local self = MoveableObject.new(x, y, dx, dy, hitx, hity, hitw, hith, flags)
+	setmetatable(self, Enemy_Rock)
 	self.hitx = x
 	self.hity = y
 	self.dx = dx or game_dx
@@ -366,6 +367,15 @@ function Enemy_Rock.new(x, y, dx, dy, flags)
 	}
 	
 	return self
+end
+
+function Enemy_Rock:update(dt)
+	MoveableObject.update(self, dt)
+end
+
+function Enemy_Rock:increment_counter()
+	enemy_killed_count = enemy_killed_count + 1
+	enemy_rock_killed_count = enemy_rock_killed_count + 1
 end
 
 local Enemy_Gross = {}
@@ -424,6 +434,11 @@ function Enemy_Gross:update(dt)
 	end
 end
 
+function Enemy_Gross:increment_counter()
+	enemy_killed_count = enemy_killed_count + 1
+	enemy_gross_killed_count = enemy_gross_killed_count + 1
+end
+
 local Enemy_Drang = {}
 Enemy_Drang.__index = Enemy_Drang
 
@@ -445,6 +460,7 @@ function Enemy_Drang.new(x, y, dx, dy, flags)
 	self.health = 3
 	self.points = 150
 	self.id = "forked_drang"
+	self.chance_100_heart = true
 
 	self.death_effects = {
 		death_effect_points, 
@@ -453,7 +469,6 @@ function Enemy_Drang.new(x, y, dx, dy, flags)
 		death_effect_shockwave,
 		death_effect_sound_blockhit,
 		death_effect_break,
-		death_effect_spawn_lilgabbro,
 		death_effect_spawn_heart,
 	}
 
@@ -467,7 +482,11 @@ function Enemy_Drang:update(dt)
 		self.dy = 50 + game_dy
 	end
 	MoveableObject.update(self, dt)
+end
 
+function Enemy_Drang:increment_counter()
+	enemy_killed_count = enemy_killed_count + 1
+	enemy_drang_killed_count = enemy_drang_killed_count + 1
 end
 
 local Projectile_Water = {}
@@ -608,7 +627,10 @@ function set_draw_color(num)
 end
 
 function spawn_enemy(enemy, x, y, dx, dy, flags)
-	local e = enemy.new(x, y, dx, dy, flags)
+	local gdx = dx or game_dx
+	local gdy = dy or game_dy
+
+	local e = enemy.new(x, y, gdx, gdy, flags)
 
 	table.insert(enemies, e)
 end
@@ -680,6 +702,9 @@ function death_effect_spawn_heart(enemy)
 	local pointY = enemy.y + enemy.hith/2
 
 	local value = math.random(1, 100)
+	if enemy.chance_100_heart then
+		value = 1
+	end
 	if value < 5 then
 		spawn_powerup(Powerup_Heart, pointX, pointY)
 		local sound = love.audio.newSource("sounds/poink.wav", "static")
@@ -872,6 +897,16 @@ function love.load()
 	timer_invulnerable = nil
 	timer_shot = nil
 	timer_secondshot = nil
+
+	timer_enemy_spawner = 1
+	timer_game_speed = 1
+
+	enemy_killed_count = 0
+	enemy_rock_killed_count = 0
+	enemy_gross_killed_count = 0
+	enemy_drang_killed_count = 0
+
+	game_difficulty_factor = 1
 
 	shader_flash = love.graphics.newShader[[
 		vec4 effect(vec4 color, Image texture, vec2 texture_coords, vec2 screen_coords)
@@ -1101,8 +1136,6 @@ function reset_game()
 	particles = {}
 	powerups = {}
 
-	ecount = 1
-
 	-- ui
 	score = 0
 	load_player()
@@ -1114,6 +1147,8 @@ function reset_game()
 	-- everything which moves along the screen should reference these variables
 	game_dx = -150
 	game_dy = 0
+
+	game_difficulty_factor = 1
 
 	sound_slash = love.audio.newSource("sounds/slash.wav", 'static')
 	shot_circ_r = 0
@@ -1150,6 +1185,7 @@ function update_enemies(dt)
 		local enemy_dead = enemy.health and enemy.health <= 0
 		if enemy_dead then
 			enemy:trigger_death_effects()
+			enemy:increment_counter()
 		end
 		if enemy_left_game_area or enemy_dead then
 			table.remove(enemies, i)
@@ -1381,14 +1417,32 @@ function update_game(dt)
 		end
 	end
 	
-	
-	if #enemies < 7 then
-		ecount = ecount + 1
-		spawn_enemy(Enemy_Rock, game_width + 50, math.random(50, game_height - 50))
-		if ecount % 7 == 0 then
-			spawn_enemy(Enemy_Gross, game_width + 50, math.random(50, game_height - 50))
+
+
+	-- enemy spawning difficulty measuring
+	if timer_global - timer_enemy_spawner > game_difficulty_factor then
+		if game_difficulty_factor > 0.25 then
+			game_difficulty_factor = game_difficulty_factor - 0.0025
 		end
+		local chance = math.random(0, 100)
+		if chance > 25 then
+			spawn_enemy(Enemy_Rock, game_width + 2, math.random(2, game_height - 50))
+		else
+			spawn_enemy(Enemy_Gross, game_width + 2, math.random(2, game_height - 50))
+		end
+		if chance < 5 * game_difficulty_factor then
+			spawn_enemy(Enemy_Drang, game_width + 2, math.random(2, game_height - 50))
+		end
+		timer_enemy_spawner = timer_global
 	end
+	if timer_global > 300 and game_difficulty_factor > 0.1 and timer_global - timer_game_speed > 1 then
+		game_difficulty_factor = game_difficulty_factor - 0.001
+	end
+	if timer_global - timer_game_speed > 1 then
+		game_dx = game_dx - 0.25
+		timer_game_speed = timer_global
+	end
+	
 end
 
 function update_start(dt)
@@ -1570,7 +1624,13 @@ end
 function draw_game()
 	draw_background()
 	draw_ui()
-	
+	love.graphics.print(game_difficulty_factor, 250, 4)
+	love.graphics.print(game_dx, 450, 4)
+	love.graphics.print(timer_global, 650, 4)
+	love.graphics.print(enemy_killed_count, 270, 13)
+	love.graphics.print(enemy_rock_killed_count, 300, 13)
+	love.graphics.print(enemy_gross_killed_count, 330, 13)
+	love.graphics.print(enemy_drang_killed_count, 360, 13)
 	draw_particles()
 	draw_enemies()
 	draw_bullets()
