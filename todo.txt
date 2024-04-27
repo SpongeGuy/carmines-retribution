@@ -24,7 +24,7 @@ todo
 		if flag is true, draw sprite red
 		after a time, set flag to false
 
--- DONE --
+
 
 4/10/2024
 	make actual ui with health and score values
@@ -34,3 +34,12 @@ todo
 	make it so that point value of enemies are drawn for a time after enemy death
 	have a good way to make the screen fucking pixelated because this resolution shit is bunk
 		estimated location of drawings on screen
+
+-- DONE --
+
+4/27/2024
+	make end screen to count up points from ALL sources
+		make this screen nice and fancy
+	fix up title screen
+		probably make a design first dimwit
+	old-school type credits screen displaying enemy and pickup names

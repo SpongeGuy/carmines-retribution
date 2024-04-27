@@ -282,6 +282,8 @@ function control(obj, speed, left, right, up, down)
 		obj.dx = obj.dx * 0.707
 		obj.dy = obj.dy * 0.707
 	end
+	obj.dx = obj.dx * 1.2
+	obj.dy = obj.dy * 1.2
 end
 
 --  ____  _  _  _   _  ____  ____  ____  ____  ____  ____  
@@ -344,8 +346,8 @@ function Enemy_Rock.new(x, y, dx, dy, flags)
 	setmetatable(self, Enemy_Rock)
 	self.hitx = x
 	self.hity = y
-	self.dx = dx or game_dx
-	self.dy = dy or game_dy
+	self.dx = dx or game_dx * 0.75
+	self.dy = dy or game_dy * 0.75
 	self.hitw = 55
 	self.hith = 36
 	self.sheet = load_image("sprites/rocks/rock1_sheet.png")
@@ -354,6 +356,7 @@ function Enemy_Rock.new(x, y, dx, dy, flags)
 	self.health = 5
 	self.points = 100
 	self.id = "evil_rock"
+	self.timer = timer_global
 
 	self.death_effects = {
 		death_effect_points, 
@@ -371,6 +374,14 @@ end
 
 function Enemy_Rock:update(dt)
 	MoveableObject.update(self, dt)
+	if carmine and timer_global - self.timer > 1 then
+		self.timer = timer_global
+		local chance = math.random(1, 100)
+		if chance < 15 then
+			local pdx, pdy = get_vector(self, carmine, 200, true)
+			red_orb_shot(self.x + self.hitw / 2, self.y + self.hith / 2, pdx, pdy, false)
+		end
+	end
 end
 
 function Enemy_Rock:increment_counter()
@@ -509,6 +520,25 @@ function Projectile_Water.new(x, y, dx, dy, friendly)
 	return self
 end
 
+local Projectile_Red_Orb = {}
+Projectile_Red_Orb.__index = Projectile_Red_Orb
+
+setmetatable(Projectile_Red_Orb, {__index = MoveableObject})
+
+function Projectile_Red_Orb.new(x, y, dx, dy, friendly)
+	local self = MoveableObject.new(x, y, dx, dy)
+	self.hitx = x
+	self.hity = y
+	self.hitw = 16
+	self.hith = 16
+	self.sheet = load_image("sprites/damage_orb/damage_orb-sheet.png")
+	self.animation = initialize_animation(self.sheet, 16, 16, '1-5', 0.1)
+	self.friendly = friendly
+	self.id = "damage_orb"
+	self.health = 1
+	return self
+end
+
 local Powerup_Lil_Gabbro = {}
 Powerup_Lil_Gabbro.__index = Powerup_Lil_Gabbro
 
@@ -627,9 +657,6 @@ function set_draw_color(num)
 end
 
 function spawn_enemy(enemy, x, y, dx, dy, flags)
-	local gdx = dx or game_dx
-	local gdy = dy or game_dy
-
 	local e = enemy.new(x, y, gdx, gdy, flags)
 
 	table.insert(enemies, e)
@@ -847,29 +874,34 @@ end
 
 function single_water_shot(x, y, dx, dy, friendly)
 	local water = Projectile_Water.new(x, y, dx, dy, friendly)
-	timer_shot = timer_global
+	
 	--timer_secondshot = timer_global
 	local sound = love.audio.newSource("sounds/ball_shot.wav", 'static')
 	sound:play()
-	key_space_pressed = true
 	
 	table.insert(bullets, water)
-	shot_circ_r = 25
+	
 end
 
 function double_water_shot(x, y, dx, dy, friendly)
 	--21
 	local water1 = Projectile_Water.new(x, y + 21/2, dx, dy, friendly)
 	local water2 = Projectile_Water.new(x, y - 21/2, dx, dy, friendly)
-	timer_shot = timer_global
 	local sound = love.audio.newSource("sounds/ball_shot.wav", 'static')
 	sound:play()
-	key_space_pressed = true
 	
 	table.insert(bullets, water1)
 	table.insert(bullets, water2)
-	shot_circ_r = 25
+	
 
+end
+
+function red_orb_shot(x, y, dx, dy, friendly)
+	local orb = Projectile_Red_Orb.new(x, y, dx, dy, friendly)
+	local sound = love.audio.newSource("sounds/weak_shot.wav", 'static')
+	sound:play()
+
+	table.insert(bullets, orb)
 end
 
 
@@ -956,6 +988,11 @@ function load_player()
 
 		-- water drop
 		if love.keyboard.isDown('space') and not timer_shot then
+			shot_circ_r = 25
+			timer_shot = timer_global
+			key_space_pressed = true
+
+			-- shot types / abilities ???
 			if carmine.attack_type == "single_water_shot" then
 				single_water_shot(math.floor(carmine.x + 10), math.floor(carmine.y), 550, 0, true)
 			elseif carmine.attack_type == "double_water_shot" then
@@ -964,6 +1001,8 @@ function load_player()
 			if carmine.secondshot then
 				timer_secondshot = timer_global
 			end
+
+
 		end
 
 		if timer_secondshot and timer_global - timer_secondshot > carmine.attack_speed/2 then
@@ -1142,6 +1181,11 @@ function reset_game()
 	load_ui()
 	level = 1
 
+	-- statistics
+	enemy_killed_count = 0
+	enemy_rock_killed_count = 0
+	enemy_gross_killed_count = 0
+	enemy_drang_killed_count = 0
 
 	-- these are the controllers for every moving object
 	-- everything which moves along the screen should reference these variables
@@ -1308,6 +1352,33 @@ function update_player(dt)
 end
 
 
+function game_rules(dt)
+	-- enemy spawning difficulty measuring
+	if timer_global - timer_enemy_spawner > game_difficulty_factor then
+		if game_difficulty_factor > 0.25 then
+			game_difficulty_factor = game_difficulty_factor - 0.0025
+		end
+		local chance = math.random(0, 100)
+		if chance > 25 then
+			spawn_enemy(Enemy_Rock, game_width + 2, math.random(2, game_height - 50))
+		else
+			spawn_enemy(Enemy_Gross, game_width + 2, math.random(2, game_height - 50))
+		end
+		if chance < 5 * game_difficulty_factor then
+			spawn_enemy(Enemy_Drang, game_width + 2, math.random(2, game_height - 50))
+		end
+		timer_enemy_spawner = timer_global
+	end
+	if timer_global > 300 and game_difficulty_factor > 0.1 and timer_global - timer_game_speed > 1 then
+		game_difficulty_factor = game_difficulty_factor - 0.001
+	end
+	if timer_global - timer_game_speed > 1 then
+		game_dx = game_dx - 0.25
+		timer_game_speed = timer_global
+	end
+end
+
+
 function update_game(dt)
 	logstring = ""
 	load_ui() -- probably shouldn't have this here, but right now it's fine
@@ -1419,29 +1490,7 @@ function update_game(dt)
 	
 
 
-	-- enemy spawning difficulty measuring
-	if timer_global - timer_enemy_spawner > game_difficulty_factor then
-		if game_difficulty_factor > 0.25 then
-			game_difficulty_factor = game_difficulty_factor - 0.0025
-		end
-		local chance = math.random(0, 100)
-		if chance > 25 then
-			spawn_enemy(Enemy_Rock, game_width + 2, math.random(2, game_height - 50))
-		else
-			spawn_enemy(Enemy_Gross, game_width + 2, math.random(2, game_height - 50))
-		end
-		if chance < 5 * game_difficulty_factor then
-			spawn_enemy(Enemy_Drang, game_width + 2, math.random(2, game_height - 50))
-		end
-		timer_enemy_spawner = timer_global
-	end
-	if timer_global > 300 and game_difficulty_factor > 0.1 and timer_global - timer_game_speed > 1 then
-		game_difficulty_factor = game_difficulty_factor - 0.001
-	end
-	if timer_global - timer_game_speed > 1 then
-		game_dx = game_dx - 0.25
-		timer_game_speed = timer_global
-	end
+	game_rules(dt)
 	
 end
 
