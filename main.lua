@@ -657,7 +657,14 @@ function set_draw_color(num)
 end
 
 function spawn_enemy(enemy, x, y, dx, dy, flags)
+
 	local e = enemy.new(x, y, gdx, gdy, flags)
+	for i = #enemies, 1, -1 do
+		if get_collision(e, enemies[i]) then
+			logstring = logstring.."5555555555"
+			return
+		end
+	end
 
 	table.insert(enemies, e)
 end
@@ -1421,6 +1428,15 @@ end
 
 
 function game_rules(dt)
+	-- get coordinates of possible enemy spawn
+	-- do for loop through enemies
+	-- if coordinates collide with another enemy, don't spawn
+	-- - instead, add to queue and continually spawn those from the queue when able
+	x = game_width + 2
+	y = math.random(2, game_height - 50)
+
+	logstring = logstring.."eee"
+
 	-- enemy spawning difficulty measuring
 	if timer_global - timer_enemy_spawner > game_difficulty_factor then
 		if game_difficulty_factor > 0.25 then
@@ -1428,12 +1444,12 @@ function game_rules(dt)
 		end
 		local chance = math.random(0, 100)
 		if chance > 25 then
-			spawn_enemy(Enemy_Rock, game_width + 2, math.random(2, game_height - 50))
+			spawn_enemy(Enemy_Rock, x, y)
 		else
-			spawn_enemy(Enemy_Gross, game_width + 2, math.random(2, game_height - 50))
+			spawn_enemy(Enemy_Gross, x, y)
 		end
 		if chance < 5 * game_difficulty_factor then
-			spawn_enemy(Enemy_Drang, game_width + 2, math.random(2, game_height - 50))
+			spawn_enemy(Enemy_Drang, x, y)
 		end
 		timer_enemy_spawner = timer_global
 	end
