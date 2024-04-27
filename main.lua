@@ -529,10 +529,10 @@ function Projectile_Red_Orb.new(x, y, dx, dy, friendly)
 	local self = MoveableObject.new(x, y, dx, dy)
 	self.hitx = x
 	self.hity = y
-	self.hitw = 16
-	self.hith = 16
+	self.hitw = 14
+	self.hith = 14
 	self.sheet = load_image("sprites/damage_orb/damage_orb-sheet.png")
-	self.animation = initialize_animation(self.sheet, 16, 16, '1-5', 0.1)
+	self.animation = initialize_animation(self.sheet, 14, 14, '1-5', 0.05)
 	self.friendly = friendly
 	self.id = "damage_orb"
 	self.health = 1
@@ -1151,8 +1151,31 @@ function load_ui()
 	
 	ui_label_score_y = 4
 	ui_score = love.graphics.newText(font_gamer_med, score)
-	ui_score_x = ui_label_score_x
+	ui_score_x = ui_label_score_x + 8
 	ui_score_y = ui_label_score_y + ui_label_score:getHeight() + 2
+
+	-- time
+	ui_label_time = love.graphics.newText(font_gamer_med, "-TIME-")
+	ui_label_time_x = game_width - 4 - ui_label_time:getWidth()
+	ui_label_time_y = 4
+	ui_time = love.graphics.newText(font_gamer_med, math.floor(timer_global))
+	ui_time_x = ui_label_time_x + 8
+	ui_time_y = ui_label_time_y + ui_label_time:getHeight()
+
+
+	-- kills
+	ui_label_kills = love.graphics.newText(font_gamer_med, "-KILLS-")
+	ui_label_kills_x = ui_label_time_x - 12 - ui_label_kills:getWidth()
+	ui_label_kills_y = 4
+	ui_kills = love.graphics.newText(font_gamer_med, enemy_killed_count)
+	ui_kills_x = ui_label_kills_x + 8
+	ui_kills_y = ui_label_kills_y + ui_label_life:getHeight()
+
+
+
+	
+
+
 end
 
 function load_stars()
@@ -1180,6 +1203,8 @@ function reset_game()
 	load_player()
 	load_ui()
 	level = 1
+
+	timer_global = 0
 
 	-- statistics
 	enemy_killed_count = 0
@@ -1668,18 +1693,18 @@ function draw_ui()
 	draw_hearts()
 	love.graphics.draw(ui_label_score, ui_label_score_x, ui_label_score_y)
 	love.graphics.draw(ui_score, ui_score_x, ui_score_y)
+
+	love.graphics.draw(ui_label_time, ui_label_time_x, ui_label_time_y)
+	love.graphics.draw(ui_time, ui_time_x, ui_time_y)
+	love.graphics.draw(ui_label_kills, ui_label_kills_x, ui_label_kills_y)
+	love.graphics.draw(ui_kills, ui_kills_x, ui_kills_y)
 end
 
 function draw_game()
 	draw_background()
 	draw_ui()
-	love.graphics.print(game_difficulty_factor, 250, 4)
-	love.graphics.print(game_dx, 450, 4)
-	love.graphics.print(timer_global, 650, 4)
-	love.graphics.print(enemy_killed_count, 270, 13)
-	love.graphics.print(enemy_rock_killed_count, 300, 13)
-	love.graphics.print(enemy_gross_killed_count, 330, 13)
-	love.graphics.print(enemy_drang_killed_count, 360, 13)
+	-- love.graphics.print(game_difficulty_factor, 250, 4)
+	-- love.graphics.print(game_dx, 450, 4)
 	draw_particles()
 	draw_enemies()
 	draw_bullets()
