@@ -673,80 +673,6 @@ end
 --  )__)  )__)  )__)  )__)( (__   )(  \__ \
 -- (____)(__)  (__)  (____)\___) (__) (___/
 
-
-
-function death_effect_explode(enemy)
-	local pointX = enemy.x + enemy.hitw/2
-	local pointY = enemy.y + enemy.hith/2
-
-	for p  = 1, 50 do
-		effect_explode(pointX, pointY, math.random(-150, 150) + enemy.dx, math.random(-150, 150) + enemy.dy)
-	end
-end
-
-function death_effect_shockwave(enemy)
-	local pointX = enemy.x + enemy.hitw/2
-	local pointY = enemy.y + enemy.hith/2
-
-	effect_shockwave(pointX, pointY, enemy.dx / 2, enemy.dy / 2)
-end
-
-function death_effect_burst(enemy)
-	local pointX = enemy.x + enemy.hitw/2
-	local pointY = enemy.y + enemy.hith/2
-
-	effect_burst(pointX, pointY, enemy.dx * 0.75, enemy.dy * 0.75, 50)
-end
-
-function death_effect_break(enemy)
-	local pointX = enemy.x + enemy.hitw/2
-	local pointY = enemy.y + enemy.hith/2
-
-	for i = 1, 50 do
-		effect_break(pointX, pointY, enemy.dx + math.random(-300, 300), enemy.dy + math.random(-300, 300))
-	end
-end
-
-function death_effect_sound_blockhit(enemy)
-	local sound = love.audio.newSource("sounds/block_hit.wav", 'static')
-	sound:play()
-end
-
-function death_effect_spawn_lilgabbro(enemy)
-	local pointX = enemy.x + enemy.hitw/2
-	local pointY = enemy.y + enemy.hith/2
-
-	local value = math.random(1, 100)
-	if value < 25 then
-		spawn_powerup(Powerup_Lil_Gabbro, pointX, pointY)
-		local sound = love.audio.newSource("sounds/poink.wav", "static")
-		sound:play()
-	end
-end
-
-function death_effect_spawn_heart(enemy)
-	local pointX = enemy.x + enemy.hitw/2
-	local pointY = enemy.y + enemy.hith/2
-
-	local value = math.random(1, 100)
-	if enemy.chance_100_heart then
-		value = 1
-	end
-	if value < 5 then
-		spawn_powerup(Powerup_Heart, pointX, pointY)
-		local sound = love.audio.newSource("sounds/poink.wav", "static")
-		sound:play()
-	end
-end
-
-function death_effect_points(enemy, apply)
-	local pointX = enemy.x + enemy.hitw/2
-	local pointY = enemy.y + enemy.hith/2
-	local points = enemy.points
-	
-	effect_points(pointX, pointY, enemy.dx / 2.5 + math.random(-50, 50), math.random(-50, 50), points, apply)
-end
-
 function effect_points(x, y, dx, dy, points, apply)
 	local a = true
 	if apply == false then
@@ -864,6 +790,82 @@ function effect_starfield(x, y, w, h)
 		table.insert(background, star)
 	end
 end
+
+
+
+function death_effect_explode(enemy)
+	local pointX = enemy.x + enemy.hitw/2
+	local pointY = enemy.y + enemy.hith/2
+
+	for p  = 1, 50 do
+		effect_explode(pointX, pointY, math.random(-150, 150) + enemy.dx, math.random(-150, 150) + enemy.dy)
+	end
+end
+
+function death_effect_shockwave(enemy)
+	local pointX = enemy.x + enemy.hitw/2
+	local pointY = enemy.y + enemy.hith/2
+
+	effect_shockwave(pointX, pointY, enemy.dx / 2, enemy.dy / 2)
+end
+
+function death_effect_burst(enemy)
+	local pointX = enemy.x + enemy.hitw/2
+	local pointY = enemy.y + enemy.hith/2
+
+	effect_burst(pointX, pointY, enemy.dx * 0.75, enemy.dy * 0.75, 50)
+end
+
+function death_effect_break(enemy)
+	local pointX = enemy.x + enemy.hitw/2
+	local pointY = enemy.y + enemy.hith/2
+
+	for i = 1, 50 do
+		effect_break(pointX, pointY, enemy.dx + math.random(-300, 300), enemy.dy + math.random(-300, 300))
+	end
+end
+
+function death_effect_sound_blockhit(enemy)
+	local sound = love.audio.newSource("sounds/block_hit.wav", 'static')
+	sound:play()
+end
+
+function death_effect_spawn_lilgabbro(enemy)
+	local pointX = enemy.x + enemy.hitw/2
+	local pointY = enemy.y + enemy.hith/2
+
+	local value = math.random(1, 100)
+	if value < 25 then
+		spawn_powerup(Powerup_Lil_Gabbro, pointX, pointY)
+		local sound = love.audio.newSource("sounds/poink.wav", "static")
+		sound:play()
+	end
+end
+
+function death_effect_spawn_heart(enemy)
+	local pointX = enemy.x + enemy.hitw/2
+	local pointY = enemy.y + enemy.hith/2
+
+	local value = math.random(1, 100)
+	if enemy.chance_100_heart then
+		value = 1
+	end
+	if value < 5 then
+		spawn_powerup(Powerup_Heart, pointX, pointY)
+		local sound = love.audio.newSource("sounds/poink.wav", "static")
+		sound:play()
+	end
+end
+
+function death_effect_points(enemy, apply)
+	local pointX = enemy.x + enemy.hitw/2
+	local pointY = enemy.y + enemy.hith/2
+	local points = enemy.points
+	
+	effect_points(pointX, pointY, enemy.dx / 2.5 + math.random(-50, 50), math.random(-50, 50), points, apply)
+end
+
+
 
 
 
@@ -1207,14 +1209,6 @@ function reset_game()
 	load_ui()
 	level = 1
 
-	timer_global = 0
-
-	-- statistics
-	enemy_killed_count = 0
-	enemy_rock_killed_count = 0
-	enemy_gross_killed_count = 0
-	enemy_drang_killed_count = 0
-
 	-- these are the controllers for every moving object
 	-- everything which moves along the screen should reference these variables
 	game_dx = -150
@@ -1226,6 +1220,26 @@ function reset_game()
 	shot_circ_r = 0
 	shot_circ_x = 0
 	shot_circ_y = 0
+
+	timer_blink = 1
+	timer_global = 1
+	timer_enemy_spawner = 1
+	timer_game_speed = 1
+	game_difficulty_factor = 1
+	timer_levelselect_delay = nil
+
+	timer_menu_delay = nil
+
+	timer_invulnerable = nil
+	timer_shot = nil
+	timer_secondshot = nil
+
+	enemy_killed_count = 0
+	enemy_rock_killed_count = 0
+	enemy_gross_killed_count = 0
+	enemy_drang_killed_count = 0
+
+	
 
 	if level == 1 then
 		effect_starfield(0, 0, game_width, game_height)
@@ -1406,7 +1420,7 @@ end
 function update_game(dt)
 	logstring = ""
 	load_ui() -- probably shouldn't have this here, but right now it's fine
-	if timer_levelselect_delay and timer_global - timer_levelselect_delay > 2 then
+	if timer_levelselect_delay and timer_global - timer_levelselect_delay > 3 then
 		timer_levelselect_delay = nil
 	end
 
@@ -1465,11 +1479,14 @@ function update_game(dt)
 		end
 	end
 
-	log1:log(logstring)
+	
 
 	if not carmine then
+		logstring = logstring .. "hi"
 		return
 	end
+
+	log1:log(logstring)
 
 	for i = 1, #enemies do -- enemy collide with player
 		if not enemies[i].friendly and get_collision(carmine, enemies[i]) then
@@ -1512,7 +1529,7 @@ function update_game(dt)
 		end
 	end
 	
-
+	
 	if not timer_levelselect_delay then
 		game_rules(dt)
 	end
@@ -1708,7 +1725,11 @@ function draw_game()
 	draw_background()
 	draw_ui()
 	-- love.graphics.print(game_difficulty_factor, 250, 4)
-	love.graphics.print(timer_global, 450, 4)
+	if timer_levelselect_delay then
+		love.graphics.print(timer_levelselect_delay, 450, 4)
+	end
+
+	
 	draw_particles()
 	draw_enemies()
 	draw_bullets()
@@ -1758,6 +1779,7 @@ end
 
 function love.draw()
 	push:start()
+		love.graphics.print(mode, 600, 4)
 		if mode == 'game' then
 			draw_game()
 		elseif mode == 'start' then
