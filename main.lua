@@ -687,10 +687,26 @@ function effect_points(x, y, dx, dy, points, apply)
 	table.insert(particles, pp)
 end
 
-function effect_message(x, y, dx, dy, text)
+function create_text(x, y, dx, dy, text, delay)
+	local msg = ParticleObject.new(x, y, dx, dy, "display_text")
+	msg.color = 22
+	msg.obj = love.graphics.newText(font_gamer_med, text)
+	if delay then
+		msg.timer = msg.timer + delay
+	end
+
+	return msg
+end
+
+function effect_message(x, y, dx, dy, text, delay)
+
 	local msg = ParticleObject.new(x, y, dx, dy, "effect_points")
 	msg.points = text
 	msg.timer = msg.timer + 0.5
+	if delay then
+		msg.timer = msg.timer + delay
+	end
+	
 	table.insert(particles, msg)
 end
 
@@ -1134,6 +1150,8 @@ function load_ui()
 	ui_label_name_x = 4
 	ui_label_name_y = 4
 
+	
+
 	-- life
 	ui_label_life = love.graphics.newText(font_gamer_med, "-LIFE-")
 	ui_label_life_x = ui_label_name:getWidth() + 12
@@ -1202,6 +1220,7 @@ function reset_game()
 	explosions = {}
 	particles = {}
 	powerups = {}
+	ui = {}
 
 	-- ui
 	score = 0
@@ -1308,6 +1327,17 @@ function update_hearts(dt)
 			hearts[i].full = false
 		end
 		hearts[i]:update(dt)
+	end
+end
+
+function update_ui(dt)
+	for i = #ui, 1, -1 do
+		if ui[i].id == "display_text" then
+			ui[i]:update(dt)
+			if ui[i].delay ~= false and timer_global - ui[i].timer > 1 then
+				--table.remove(ui, i)
+			end
+		end
 	end
 end
 
@@ -1709,6 +1739,12 @@ end
 function draw_ui()
 	set_draw_color(7)
 	love.graphics.draw(ui_label_name, ui_label_name_x, ui_label_name_y)
+	for i = 1, #ui do
+		if ui[i].id == "display_text" then
+			set_draw_color(ui[i].color)
+			love.graphics.draw(ui[i].obj, ui[i].x, ui[i].y)
+		end
+	end
 	set_draw_color(22)
 	love.graphics.draw(ui_label_life, ui_label_life_x, ui_label_life_y)
 	draw_hearts()
