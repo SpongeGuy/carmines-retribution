@@ -926,6 +926,9 @@ function love.load()
 	timer_blink = 1
 	timer_global = 1
 	timer_levelselect_delay = nil
+
+	timer_menu_delay = nil
+
 	timer_invulnerable = nil
 	timer_shot = nil
 	timer_secondshot = nil
@@ -1227,10 +1230,6 @@ function reset_game()
 	if level == 1 then
 		effect_starfield(0, 0, game_width, game_height)
 	end
-	
-
-	spawn_enemy(Enemy_Drang, game_width + 20, 150)
-	spawn_powerup(Powerup_Heart, game_width + 20, 200, game_dx / 2, game_dy / 2)
 end
 
 
@@ -1514,8 +1513,9 @@ function update_game(dt)
 	end
 	
 
-
-	game_rules(dt)
+	if not timer_levelselect_delay then
+		game_rules(dt)
+	end
 	
 end
 
@@ -1551,6 +1551,10 @@ function love.update(dt)
 		timer_blink = timer_blink + (1 * dt) * 15
 		update_game(dt)
 		update_gameover(dt)
+	elseif mode == 'results' then
+
+	elseif mode == 'credits' then
+		
 	elseif mode == 'levelscreen' then
 		update_levelscreen(dt)
 	end
@@ -1704,7 +1708,7 @@ function draw_game()
 	draw_background()
 	draw_ui()
 	-- love.graphics.print(game_difficulty_factor, 250, 4)
-	-- love.graphics.print(game_dx, 450, 4)
+	love.graphics.print(timer_global, 450, 4)
 	draw_particles()
 	draw_enemies()
 	draw_bullets()
