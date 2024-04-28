@@ -16,4 +16,5 @@ Use WASD to fly around and the spacebar to shoot and continue through menus.
 ![Picture of additional pickups.](https://cdn.discordapp.com/attachments/639905243534065704/1234177626709688331/14.png?ex=662fc8fc&is=662e777c&hm=7eea9d6cccfa713728f62e5a295c06d75d8297665090e8c7da0bc0642c63bb76& "Lil guys!")
 ![Picture of midgame.](https://cdn.discordapp.com/attachments/639905243534065704/1234177627070136423/15.png?ex=662fc8fc&is=662e777c&hm=569e58499c5e4cfbb245b7ded30e896b5aaf6cf28643f5e3a3091f75123cd0f0& "Midgame chaos! See if you can make it to 1000 kills!")
 
-Story-based gameplay coming soon.
+## Future
+Currently, the game is in a very early stage, but is still playable and fun. Eventually, I want to make this game into a more story-based game that plays more like Gradius, with roguelite elements like a shop and special upgrades to change the way you play later on during a game.
