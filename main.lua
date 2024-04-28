@@ -348,10 +348,10 @@ function Enemy_Rock.new(x, y, dx, dy, flags)
 	self.hity = y
 	self.dx = dx or game_dx * 0.75
 	self.dy = dy or game_dy * 0.75
-	self.hitw = 55
-	self.hith = 36
-	self.sheet = load_image("sprites/rocks/rock1_sheet.png")
-	self.animation = initialize_animation(self.sheet, 55, 36, '1-2', 0.1)
+	self.hitw = 43
+	self.hith = 30
+	self.sheet = load_image("sprites/rocks/rock1-sheet.png")
+	self.animation = initialize_animation(self.sheet, 43, 30, '1-5', 0.1)
 	self.friendly = false
 	self.health = 5
 	self.points = 100
@@ -1003,6 +1003,13 @@ function load_player()
 		-- important attributes here
 		self.max_health = player_max_health
 		self.attack_speed = player_attack_speed
+		if player.dy < 0 then
+			carmine_body_animation:gotoFrame(3)
+		elseif player.dy > 0 then
+			carmine_body_animation:gotoFrame(1)
+		else
+			carmine_body_animation:gotoFrame(2)
+		end
 	end
 	function player:shoot(dt)
 		if self.health <= 0 then
@@ -1057,6 +1064,22 @@ function load_player()
 	carmine_wings_right_sheet = load_image('sprites/wings/carmine_wings_right_sheet.png')
 	g = anim8.newGrid(100, 100, carmine_wings_right_sheet:getWidth(), carmine_wings_right_sheet:getHeight())
 	carmine_wings_right_animation = anim8.newAnimation(g('1-4', 1), 0.1)
+	
+	function player:draw()
+		if not timer_invulnerable then
+			carmine_wings_left_animation:draw(carmine_wings_right_sheet, math.floor(player.x - 45), math.floor(player.y - 35))
+			carmine_body_animation:draw(carmine_body_sheet, math.floor(player.x), math.floor(player.y))
+			carmine_wings_right_animation:draw(carmine_wings_left_sheet, math.floor(player.x - 45), math.floor(player.y - 35))
+		else
+			if math.sin(timer_global * 50) < 0.5 then
+				carmine_wings_left_animation:draw(carmine_wings_right_sheet, math.floor(player.x - 45), math.floor(player.y - 35))
+				carmine_body_animation:draw(carmine_body_sheet, math.floor(player.x), math.floor(player.y))
+				carmine_wings_right_animation:draw(carmine_wings_left_sheet, math.floor(player.x - 45), math.floor(player.y - 35))
+			end
+		end
+	end
+
+	
 end
 
 function load_startscreen()
@@ -1202,12 +1225,6 @@ function load_ui()
 	ui_kills = love.graphics.newText(font_gamer_med, enemy_killed_count)
 	ui_kills_x = ui_label_kills_x + 8
 	ui_kills_y = ui_label_kills_y + ui_label_life:getHeight()
-
-
-
-	
-
-
 end
 
 function load_stars()
@@ -1411,21 +1428,7 @@ function update_player(dt)
 	control(player, 250, "a", "d", "w", "s")
 	player:update(dt)
 	player:shoot(dt)
-	if player.dy < 0 then
-		carmine_body_animation:gotoFrame(3)
-	elseif player.dy > 0 then
-		carmine_body_animation:gotoFrame(1)
-	else
-		carmine_body_animation:gotoFrame(2)
-	end
-
 	
-
-	if love.keyboard.isDown('c') then
-		for p = 1, #bullets do
-			bullets[p].health = bullets[p].health -1
-		end
-	end
 end
 
 
@@ -1600,7 +1603,7 @@ end
 function update_gameover(dt)
 	-- update function for gameover screen
 	if love.keyboard.isDown('space') and not key_space_pressed then
-		mode = 'start'
+		mode = 'credits'
 		key_space_pressed = true
 	end
 end
@@ -1739,17 +1742,7 @@ function draw_player()
 	if not player then
 		return
 	end
-	if not timer_invulnerable then
-		carmine_wings_left_animation:draw(carmine_wings_right_sheet, math.floor(player.x - 45), math.floor(player.y - 35))
-		carmine_body_animation:draw(carmine_body_sheet, math.floor(player.x), math.floor(player.y))
-		carmine_wings_right_animation:draw(carmine_wings_left_sheet, math.floor(player.x - 45), math.floor(player.y - 35))
-	else
-		if math.sin(timer_global * 50) < 0.5 then
-			carmine_wings_left_animation:draw(carmine_wings_right_sheet, math.floor(player.x - 45), math.floor(player.y - 35))
-			carmine_body_animation:draw(carmine_body_sheet, math.floor(player.x), math.floor(player.y))
-			carmine_wings_right_animation:draw(carmine_wings_left_sheet, math.floor(player.x - 45), math.floor(player.y - 35))
-		end
-	end
+	player:draw()
 	set_draw_color(22)
 	love.graphics.circle('fill', math.floor(shot_circ_x), math.floor(shot_circ_y), shot_circ_r)
 end
