@@ -1,6 +1,6 @@
 
 # Carmine's Retribution
-A fun and arcadey shoot-em-up style game. Travel through space as a flying rock and try to kill as many enemies as possible as fast as possible. But know that the game gets exponentially harder as time passes.
+A fun and arcadey shoot-em-up style game, packed with satisfying sounds, visual effects, and gameplay. Travel through space as a flying rock and try to kill as many enemies as possible as fast as possible. But know that the game gets exponentially harder as time passes.
 
 Use WASD to fly around and the spacebar to shoot and continue through menus.
 
