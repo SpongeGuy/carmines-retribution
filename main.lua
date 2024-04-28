@@ -1168,7 +1168,7 @@ function load_gameover()
 	ui_label_deathmessage_x = center_text(ui_label_deathmessage_text)
 	ui_label_deathmessage_y = (game_height / 2) - 60
 
-	ui_label_angry_text = "NOT WORTHY OF CARMINE"
+	ui_label_angry_text = "NOT WORTHY OF RETRIBUTION"
 	ui_label_angry = love.graphics.newText(font_gamer_med, ui_label_angry_text)
 	ui_label_angry_x = center_text(ui_label_angry_text)
 	ui_label_angry_y = (game_height / 2) - 40
@@ -1178,7 +1178,7 @@ function load_ui()
 	load_levelscreen()
 	load_gameover()
 	-- name
-	ui_label_name = love.graphics.newText(font_gamer_med, "player")
+	ui_label_name = love.graphics.newText(font_gamer_med, "CARMINE")
 	ui_label_name_x = 4
 	ui_label_name_y = 4
 
@@ -1603,7 +1603,14 @@ end
 function update_gameover(dt)
 	-- update function for gameover screen
 	if love.keyboard.isDown('space') and not key_space_pressed then
-		mode = 'credits'
+		mode = 'start'
+		key_space_pressed = true
+	end
+end
+
+function update_credits(dt)
+	if love.keyboard.isDown('space') and not key_space_pressed then
+		mode = 'start'
 		key_space_pressed = true
 	end
 end
@@ -1622,6 +1629,7 @@ function love.update(dt)
 	elseif mode == 'results' then
 
 	elseif mode == 'credits' then
+		update_credits(dt)
 		
 	elseif mode == 'levelscreen' then
 		update_levelscreen(dt)
@@ -1823,11 +1831,11 @@ end
 
 function love.draw()
 	push:start()
-		love.graphics.print(mode, 600, 4)
+		--love.graphics.print(mode, 600, 4)
 		if mode == 'game' then
 			draw_game()
 		elseif mode == 'start' then
-			draw_letters()
+			--draw_letters()
 			draw_start()
 		elseif mode == 'gameover' then
 			draw_game()
