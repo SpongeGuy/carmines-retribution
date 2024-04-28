@@ -1,4 +1,4 @@
--- carmine's retribution
+-- player's retribution
 -- sponge guy
 
 -- variables that will literally never change here
@@ -374,11 +374,11 @@ end
 
 function Enemy_Rock:update(dt)
 	MoveableObject.update(self, dt)
-	if carmine and timer_global - self.timer > 1 then
+	if player and timer_global - self.timer > 1 then
 		self.timer = timer_global
 		local chance = math.random(1, 100)
 		if chance < 15 then
-			local pdx, pdy = get_vector(self, carmine, 200, true)
+			local pdx, pdy = get_vector(self, player, 200, true)
 			red_orb_shot(self.x + self.hitw / 2, self.y + self.hith / 2, pdx, pdy, false)
 		end
 	end
@@ -564,8 +564,8 @@ function Powerup_Lil_Gabbro.new(x, y, dx, dy)
 end
 
 function Powerup_Lil_Gabbro:update(dt)
-	if carmine and timer_global - self.timer < 1 then
-		self.dx, self.dy = get_vector(self, carmine, 1, false)
+	if player and timer_global - self.timer < 1 then
+		self.dx, self.dy = get_vector(self, player, 1, false)
 	else
 		self.dx = math.sin(timer_global / 2 + self.seed) * 200 + (game_dx / 2)
 		self.dy = math.sin(timer_global + self.seed) * 100
@@ -621,9 +621,9 @@ function Powerup_Heart:update(dt)
 end
 
 function Powerup_Heart:effect(dt)
-	if carmine.health < carmine.max_health then
-		carmine.health = carmine.health + 1
-		effect_shockwave(ui_hearts_x + (7 * (carmine.health - 1)), ui_hearts_y + 7, 0, 0, 20, 400)
+	if player.health < player.max_health then
+		player.health = player.health + 1
+		effect_shockwave(ui_hearts_x + (7 * (player.health - 1)), ui_hearts_y + 7, 0, 0, 20, 400)
 	end
 	effect_message(self.x + self.hith / 2, self.y + self.hitw / 2, self.dx / 2 + math.random(-50, 50), self.dy / 2 + math.random(-50, 50), "Health up!")
 	effect_shockwave(self.x + (self.hith / 2), self.y + self.hitw / 2, self.dx / 2, self.dy / 2)
@@ -659,13 +659,15 @@ end
 function spawn_enemy(enemy, x, y, dx, dy, flags)
 
 	local e = enemy.new(x, y, gdx, gdy, flags)
+	local fucked = false
 	for i = #enemies, 1, -1 do
 		if get_collision(e, enemies[i]) then
-			logstring = logstring.."5555555555"
+			fucked = true
 			return
 		end
 	end
 
+	if fucked then logstring = logstring .. "fucked" end
 	table.insert(enemies, e)
 end
 
@@ -987,28 +989,28 @@ function load_player()
 	player_attack_speed = 0.25
 
 
-	-- carmine
-	carmine = MoveableObject.new(100, 200, 0, 0, 114, 208, 14, 7)
-	carmine.id = "carmine"
-	carmine.points = 1000
-	carmine.max_health = player_max_health
-	carmine.health = 4
-	carmine.attack_speed = player_attack_speed
-	carmine.attack_type = "double_water_shot"
-	carmine.secondshot = true
-	function carmine:update(dt)
+	-- player
+	player = MoveableObject.new(100, 200, 0, 0, 114, 208, 14, 7)
+	player.id = "player"
+	player.points = 1000
+	player.max_health = player_max_health
+	player.health = 4
+	player.attack_speed = player_attack_speed
+	player.attack_type = "double_water_shot"
+	player.secondshot = true
+	function player:update(dt)
 		MoveableObject.update(self, dt)
 		-- important attributes here
 		self.max_health = player_max_health
 		self.attack_speed = player_attack_speed
 	end
-	function carmine:shoot(dt)
+	function player:shoot(dt)
 		if self.health <= 0 then
 			return
 		end
 		-- shot effect_burst data
-		shot_circ_x = carmine.x + 30
-		shot_circ_y = carmine.y + 10
+		shot_circ_x = player.x + 30
+		shot_circ_y = player.y + 10
 		if shot_circ_r > 0 then
 			shot_circ_r = shot_circ_r - 180 * dt
 		end
@@ -1021,20 +1023,20 @@ function load_player()
 			key_space_pressed = true
 
 			-- shot types / abilities ???
-			if carmine.attack_type == "single_water_shot" then
-				single_water_shot(math.floor(carmine.x + 10), math.floor(carmine.y), 550, 0, true)
-			elseif carmine.attack_type == "double_water_shot" then
-				double_water_shot(math.floor(carmine.x + 10), math.floor(carmine.y), 550, 0, true)
+			if player.attack_type == "single_water_shot" then
+				single_water_shot(math.floor(player.x + 10), math.floor(player.y), 550, 0, true)
+			elseif player.attack_type == "double_water_shot" then
+				double_water_shot(math.floor(player.x + 10), math.floor(player.y), 550, 0, true)
 			end
-			if carmine.secondshot then
+			if player.secondshot then
 				timer_secondshot = timer_global
 			end
 
 
 		end
 
-		if timer_secondshot and timer_global - timer_secondshot > carmine.attack_speed/2 then
-			local water = Projectile_Water.new(math.floor(carmine.x + 10), math.floor(carmine.y), 550, 0, true)
+		if timer_secondshot and timer_global - timer_secondshot > player.attack_speed/2 then
+			local water = Projectile_Water.new(math.floor(player.x + 10), math.floor(player.y), 550, 0, true)
 			table.insert(bullets, water)
 			timer_secondshot = nilv 
 			local sound = love.audio.newSource("sounds/ball_shot.wav", 'static')
@@ -1098,16 +1100,16 @@ function load_startscreen()
 	local minY = 75
 	local maxY = 100
 	local height = 120
-	local carmine_letters = {13, 2, 9, 6, 5, 7, 4, 1, 10}
+	local player_letters = {13, 2, 9, 6, 5, 7, 4, 1, 10}
 	local retribution_letters = {14, 4, 11, 9, 5, 3, 12, 11, 5, 8, 7}
 
-	for i = 1, #carmine_letters do
-		if carmine_letters[i] == 1 then
-			create_letter(carmine_letters[i], startX, math.random(minY, maxY), height - 30)
+	for i = 1, #player_letters do
+		if player_letters[i] == 1 then
+			create_letter(player_letters[i], startX, math.random(minY, maxY), height - 30)
 		else
-			create_letter(carmine_letters[i], startX, math.random(minY, maxY), height)
+			create_letter(player_letters[i], startX, math.random(minY, maxY), height)
 		end
-		startX = startX + 3 + letters_title[carmine_letters[i]][2]
+		startX = startX + 3 + letters_title[player_letters[i]][2]
 	end
 
 	startX = 50
@@ -1153,7 +1155,7 @@ function load_ui()
 	load_levelscreen()
 	load_gameover()
 	-- name
-	ui_label_name = love.graphics.newText(font_gamer_med, "CARMINE")
+	ui_label_name = love.graphics.newText(font_gamer_med, "player")
 	ui_label_name_x = 4
 	ui_label_name_y = 4
 
@@ -1328,7 +1330,7 @@ function update_hearts(dt)
 		hearts[i].full = false
 	end
 	for i = 1, player_max_health do
-		if carmine and i <= carmine.health then
+		if player and i <= player.health then
 			hearts[i].full = true
 		else
 			hearts[i].full = false
@@ -1392,26 +1394,26 @@ function update_particles(dt)
 end
 
 function update_player(dt)
-	if not carmine then
+	if not player then
 		return
 	end
-	if carmine.health <= 0 then
-		death_effect_explode(carmine)
-		death_effect_break(carmine)
-		death_effect_shockwave(carmine)
-		death_effect_burst(carmine)
-		death_effect_points(carmine, false)
-		carmine = nil
+	if player.health <= 0 then
+		death_effect_explode(player)
+		death_effect_break(player)
+		death_effect_shockwave(player)
+		death_effect_burst(player)
+		death_effect_points(player, false)
+		player = nil
 		return
 	end
 	carmine_wings_left_animation:update(dt)
 	carmine_wings_right_animation:update(dt)
-	control(carmine, 250, "a", "d", "w", "s")
-	carmine:update(dt)
-	carmine:shoot(dt)
-	if carmine.dy < 0 then
+	control(player, 250, "a", "d", "w", "s")
+	player:update(dt)
+	player:shoot(dt)
+	if player.dy < 0 then
 		carmine_body_animation:gotoFrame(3)
-	elseif carmine.dy > 0 then
+	elseif player.dy > 0 then
 		carmine_body_animation:gotoFrame(1)
 	else
 		carmine_body_animation:gotoFrame(2)
@@ -1435,7 +1437,7 @@ function game_rules(dt)
 	x = game_width + 2
 	y = math.random(2, game_height - 50)
 
-	logstring = logstring.."eee"
+	
 
 	-- enemy spawning difficulty measuring
 	if timer_global - timer_enemy_spawner > game_difficulty_factor then
@@ -1470,7 +1472,7 @@ function update_game(dt)
 		timer_levelselect_delay = nil
 	end
 
-	if carmine and carmine.health <= 0 then
+	if player and player.health <= 0 then
 		mode = 'gameover'
 	end
 
@@ -1527,19 +1529,19 @@ function update_game(dt)
 
 	
 
-	if not carmine then
-		logstring = logstring .. "hi"
+	if not player then
+		--logstring = logstring .. "hi"
 		return
 	end
 
-	log1:log(logstring)
+	
 
 	for i = 1, #enemies do -- enemy collide with player
-		if not enemies[i].friendly and get_collision(carmine, enemies[i]) then
+		if not enemies[i].friendly and get_collision(player, enemies[i]) then
 			if not timer_invulnerable then
 				sound_slash:play()
 				enemies[i].health = enemies[i].health - 1
-				carmine.health = carmine.health - 1
+				player.health = player.health - 1
 
 				local sound = love.audio.newSource("sounds/deep_hit.wav", "static")
 				sound:play()
@@ -1553,11 +1555,11 @@ function update_game(dt)
 			end
 		end
 	end
-	for i = 1, #bullets do -- enemy bullet collide with carmine
-		if not bullets[i].friendly and get_collision(carmine, bullets[i]) then
+	for i = 1, #bullets do -- enemy bullet collide with player
+		if not bullets[i].friendly and get_collision(player, bullets[i]) then
 			if not timer_invulnerable then
 				sound_slash:play()
-				carmine.health = carmine.health - 1
+				player.health = player.health - 1
 				timer_invulnerable = timer_global
 				return
 			else
@@ -1566,9 +1568,9 @@ function update_game(dt)
 			end
 		end
 	end
-	for i = #powerups, 1, -1 do -- carmine collision with powerup
+	for i = #powerups, 1, -1 do -- player collision with powerup
 		local powerup = powerups[i]
-		if get_collision(carmine, powerup) then
+		if get_collision(player, powerup) then
 			powerup:effect(dt)
 
 			table.remove(powerups, i)
@@ -1579,7 +1581,7 @@ function update_game(dt)
 	if not timer_levelselect_delay then
 		game_rules(dt)
 	end
-	
+	log1:log(logstring)
 end
 
 function update_start(dt)
@@ -1734,18 +1736,18 @@ function draw_particles()
 end
 
 function draw_player()
-	if not carmine then
+	if not player then
 		return
 	end
 	if not timer_invulnerable then
-		carmine_wings_left_animation:draw(carmine_wings_right_sheet, math.floor(carmine.x - 45), math.floor(carmine.y - 35))
-		carmine_body_animation:draw(carmine_body_sheet, math.floor(carmine.x), math.floor(carmine.y))
-		carmine_wings_right_animation:draw(carmine_wings_left_sheet, math.floor(carmine.x - 45), math.floor(carmine.y - 35))
+		carmine_wings_left_animation:draw(carmine_wings_right_sheet, math.floor(player.x - 45), math.floor(player.y - 35))
+		carmine_body_animation:draw(carmine_body_sheet, math.floor(player.x), math.floor(player.y))
+		carmine_wings_right_animation:draw(carmine_wings_left_sheet, math.floor(player.x - 45), math.floor(player.y - 35))
 	else
 		if math.sin(timer_global * 50) < 0.5 then
-			carmine_wings_left_animation:draw(carmine_wings_right_sheet, math.floor(carmine.x - 45), math.floor(carmine.y - 35))
-			carmine_body_animation:draw(carmine_body_sheet, math.floor(carmine.x), math.floor(carmine.y))
-			carmine_wings_right_animation:draw(carmine_wings_left_sheet, math.floor(carmine.x - 45), math.floor(carmine.y - 35))
+			carmine_wings_left_animation:draw(carmine_wings_right_sheet, math.floor(player.x - 45), math.floor(player.y - 35))
+			carmine_body_animation:draw(carmine_body_sheet, math.floor(player.x), math.floor(player.y))
+			carmine_wings_right_animation:draw(carmine_wings_left_sheet, math.floor(player.x - 45), math.floor(player.y - 35))
 		end
 	end
 	set_draw_color(22)
@@ -1777,9 +1779,6 @@ function draw_game()
 	draw_background()
 	draw_ui()
 	-- love.graphics.print(game_difficulty_factor, 250, 4)
-	if timer_levelselect_delay then
-		love.graphics.print(timer_levelselect_delay, 450, 4)
-	end
 
 	
 	draw_particles()
