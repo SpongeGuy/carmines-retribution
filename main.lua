@@ -259,6 +259,7 @@ function draw_hitbox(obj)
 end
 
 function control(obj, speed, left, right, up, down)
+	-- 250 is good value for speed
 	if obj.health <= 0 then
 		obj.dx = 0
 		obj.dy = 0
@@ -278,12 +279,13 @@ function control(obj, speed, left, right, up, down)
 	if love.keyboard.isDown(down) and obj.y < game_height - 23 then
 		obj.dy = speed
 	end
-	if not (obj.dx == 0 and obj.dy == 0) then
+	if obj.dx ~= 0 and obj.dy ~= 0 then
+		
 		obj.dx = obj.dx * 0.707
 		obj.dy = obj.dy * 0.707
 	end
-	obj.dx = obj.dx * 1.2
-	obj.dy = obj.dy * 1.2
+	obj.dx = obj.dx
+	obj.dy = obj.dy
 end
 
 --  ____  _  _  _   _  ____  ____  ____  ____  ____  ____  
