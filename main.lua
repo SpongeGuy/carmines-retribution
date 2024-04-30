@@ -52,22 +52,46 @@ local colors_DB32 = {
 
 
 local letters_title = {
-	{"sprites/letters/'.png", 10, 17}, 		-- 1
-	{"sprites/letters/a.png", 33, 38}, 		-- 2
-	{"sprites/letters/b.png", 32, 40}, 		-- 3
-	{"sprites/letters/e.png", 36, 42},		-- 4
-	{"sprites/letters/i.png", 9, 39},		-- 5
-	{"sprites/letters/m.png", 44, 34},		-- 6
-	{"sprites/letters/n.png", 32, 41},		-- 7
-	{"sprites/letters/o.png", 33, 41},		-- 8
-	{"sprites/letters/r.png", 25, 40},		-- 9 
-	{"sprites/letters/s.png", 39, 40},		-- 10
-	{"sprites/letters/t.png", 26, 41},		-- 11
-	{"sprites/letters/u.png", 29, 38},		-- 12
-	{"sprites/letters/big_c.png", 48, 48},	-- 13
-	{"sprites/letters/big_r.png", 61, 68},	-- 14
-
+	{"sprites/particle/letters/'.png", 10, 17}, 		-- 1
+	{"sprites/particle/letters/a.png", 33, 38}, 		-- 2
+	{"sprites/particle/letters/b.png", 32, 40}, 		-- 3
+	{"sprites/particle/letters/e.png", 36, 42},		-- 4
+	{"sprites/particle/letters/i.png", 9, 39},		-- 5
+	{"sprites/particle/letters/m.png", 44, 34},		-- 6
+	{"sprites/particle/letters/n.png", 32, 41},		-- 7
+	{"sprites/particle/letters/o.png", 33, 41},		-- 8
+	{"sprites/particle/letters/r.png", 25, 40},		-- 9 
+	{"sprites/particle/letters/s.png", 39, 40},		-- 10
+	{"sprites/particle/letters/t.png", 26, 41},		-- 11
+	{"sprites/particle/letters/u.png", 29, 38},		-- 12
+	{"sprites/particle/letters/big_c.png", 48, 48},	-- 13
+	{"sprites/particle/letters/big_r.png", 61, 68},	-- 14
 }
+
+function load_image(path)
+	local info = love.filesystem.getInfo(path)
+	if info then
+		return love.graphics.newImage(path)
+	end
+	print("Couldn't grab image from " .. path)
+end
+
+-- might add sheet data to this later
+local player_carmine_body_sheet = load_image("sprites/player/carmine/carmine_body-sheet.png")
+local player_carmine_left_wings_sheet = load_image("sprites/player/carmine/carmine_wings_left-sheet.png")
+local player_carmine_right_wings_sheet = load_image("sprites/player/carmine/carmine_wings_right-sheet.png")
+
+local entity_rock1_sheet = load_image("sprites/entity/rocks/rock1-sheet.png")
+local entity_damage_orb_sheet = load_image("sprites/entity/damage_orb/damage_orb-sheet.png")
+local entity_drang1_sheet = load_image("sprites/entity/drang/drang1-sheet.png")
+local entity_gross_guy_sheet = load_image("sprites/entity/gross_guy/gross_guy-sheet.png")
+local entity_water_drop_sheet = load_image("sprites/entity/water_drop/water_drop-sheet.png")
+
+local particle_star_sheet = load_image("sprites/particle/stars/star1-sheet.png")
+local particle_heart_sheet = load_image("sprites/particle/heart/heart_alt-sheet.png")
+
+local pickup_lilgabbron_sheet = load_image("sprites/pickup/lil_gabbron-sheet.png")
+local pickup_cheese_sheet = load_image("sprites/pickup/smol_cheese.png")
 
 
 -- shader effects
@@ -99,7 +123,7 @@ log2.draw = log1.draw
 log3.log = log1.log
 log3.draw = log1.draw
 
-function initialize_animation(sheet, frame_width, frame_height, frames, duration)
+function create_animation(sheet, frame_width, frame_height, frames, duration)
 	local a = anim8.newGrid(frame_width, frame_height, sheet:getWidth(), sheet:getHeight())
 	return anim8.newAnimation(a(frames, 1), duration)
 end
@@ -147,13 +171,7 @@ function get_vector(obj1, obj2, multiplier, normalized)
 	return dx * multiplier, dy * multiplier
 end
 
-function load_image(path)
-	local info = love.filesystem.getInfo(path)
-	if info then
-		return love.graphics.newImage(path)
-	end
-	print("Couldn't grab image from " .. path)
-end
+
 
 
 
@@ -169,6 +187,141 @@ end
 -- (  _  )(  _ \ (_  _)( ___)/ __)(_  _)/ __)
 --  )(_)(  ) _ <.-_)(   )__)( (__   )(  \__ \
 -- (_____)(____/\____) (____)\___) (__) (___/
+
+local Background = {}
+Background.__index = Background
+
+function Background.new(x, y, dx, dy, w, h, sheet, animation)
+	self.x = x
+	self.y = y
+	self.dx = dx
+	self.dy = dy
+	self.w = w
+	self.h = h
+	self.sheet = sheet
+	self.animation = animation
+end
+
+
+
+local Entity = {}
+Entity.__index = Entity
+
+function Entity.new(data)
+	local self = setmetatable({}, Entity)
+	-- this data variable will contain a table of tables containing metadata
+	-- in its update function, each table will be updated
+	-- make sure the data is in this format {{...}, {...}, {...}}
+	self.data = data
+
+	-- self.death_effects
+	-- self.death_condition
+	-- self.points
+	-- self.friendly
+	-- self.max_health
+	-- self.health
+	return self
+end
+
+
+
+local Particle = {}
+Particle.__index = Particle
+
+function Particle.new(x, y, dx, dy, lifetime, data)
+	local self = setmetatable({}, Particle)
+	self.x = x
+	self.y = y
+	self.dx = dx
+	self.dy = dy
+	self.timer = objects_timer_global
+	self.data = data
+	return self
+end
+
+
+
+local Pickup = {}
+Pickup.__index = Pickup
+
+function Pickup.new(x, y, dx, dy, hitw, hith, w, h, sheet, animation)
+	local self = setmetatable({}, Pickup)
+	-- physical data
+	self.x = x
+	self.y = y
+	self.dx = dx
+	self.dy = dy
+	self.hitw = hitw
+	self.hith = hith
+	self.pickup_effect = nil
+
+	-- visual information
+	self.w = w
+	self.h = h
+	self.sheet = sheet
+	self.animation = animation
+	
+	return self
+end
+
+
+
+local Player = {}
+Player.__index = Player
+
+function Player.new(data)
+	local self = setmetatable({}, Player)
+	-- this data variable will contain a table of tables containing metadata
+	-- in its update function, each table will be updated
+	-- make sure the data is in this format {{...}, {...}, {...}}
+	self.data = data
+
+	-- self.death_effects
+	-- self.death_condition
+	-- self.points
+	-- self.friendly
+	-- self.max_health
+	-- self.health
+	-- self.attack_speed
+	-- self.move_speed
+	return self
+end
+
+function Player:update(dt)
+	for t in self.data do
+		t.x = t.x + t.dx * dt
+		t.y = t.y + t.dy * dt
+	end
+end
+
+
+
+local Terrain = {}
+Terrain.__index = Terrain
+
+function Terrain.new(x, y, dx, dy, hitw, hith, w, h, sheet, animation)
+	local self = setmetatable({}, Terrain)
+	self.x = x
+	self.y = y
+	self.dx = dx
+	self.dy = dy
+	self.hitw = hitw
+	self.hith = hith
+	
+	-- visual information
+	self.w = w
+	self.h = h
+	self.sheet = sheet
+	self.animation = animation
+
+	return self
+end
+
+
+
+
+
+---------------------------
 
 local ParticleObject = {}
 ParticleObject.__index = ParticleObject
@@ -302,8 +455,8 @@ function Graphic_Heart.new(x, y, dx, dy)
 	local self = ParticleObject.new(x, y, dx, dy, id)
 	setmetatable(self, Graphic_Heart)
 	self.id = "heart_graphic"
-	self.sheet = load_image("sprites/heart/heart_alt_sheet.png")
-	self.animation = initialize_animation(self.sheet, 11, 11, '1-2', 100)
+	self.sheet = particle_heart_sheet
+	self.animation = create_animation(self.sheet, 11, 11, '1-2', 100)
 	self.full = true
 	return self
 end
@@ -333,8 +486,86 @@ function Player.new(x, y, dx, dy, hitx, hity, hitw, hith, flags)
 	return self
 end
 
-function Player:shoot()
-	
+function create_player_carmine(posx, posy)
+	-- init data
+	local data = {
+		{ -- body
+			x = posx,
+			y = posy,
+			dx = 0,
+			dy = 0,
+			hitw = 14,
+			hith = 7,
+		},
+		{ -- left wing
+			x = posx - 45,
+			y = posx - 45,
+			dx = 0,
+			dy = 0,
+
+		},
+		{ -- right wing
+
+		}
+	}
+end
+
+function create_enemy_rock(posx, posy, deltax, deltay)
+	-- init data
+	local data = {
+		{
+			x = posx,
+			y = posy,
+			dx = deltax,
+			dy = deltay,
+			hitw = 43,
+			hith = 30,
+			sheet = entity_rock1_sheet,
+			animation = create_animation(entity_rock1_sheet, 43, 30, '1-5', 0.1), -- trying to call sheet here
+		},
+	}
+
+	-- object creation
+	local rock = Entity.new(data)
+	rock.id = "evil_rock"
+	rock.health = 5
+	rock.points = 100
+	rock.timer = timer_global
+	rock.death_effects = {
+		death_effect_points, 
+		death_effect_burst, 
+		death_effect_explode, 
+		death_effect_shockwave,
+		death_effect_sound_blockhit,
+		death_effect_break,
+		death_effect_spawn_lilgabbro,
+		death_effect_spawn_heart,
+	}
+
+	-- update function
+	function rock:update(dt)
+		for t in self.data do
+			t.x = t.x + t.dx * dt
+			t.y = t.y + t.dy * dt
+			t.animation:update(dt)
+		end
+		if player and timer_global - self.timer > 1 then
+			self.timer = timer_global
+			local chance = math.random(1, 100)
+			if chance < 15 then
+				local pdx, pdy = get_vector(self, player, 200, true)
+				red_orb_shot(self.x + self.hitw / 2, self.y + self.hith / 2, pdx, pdy, false)
+			end
+		end
+	end
+
+	-- increment statistics
+	function rock:increment_counter()
+		enemy_killed_count = enemy_killed_count + 1
+		enemy_gross_killed_count = enemy_gross_killed_count + 1
+	end
+
+	return rock
 end
 
 local Enemy_Rock = {}
@@ -352,8 +583,8 @@ function Enemy_Rock.new(x, y, dx, dy, flags)
 	self.dy = dy or game_dy * 0.75
 	self.hitw = 43
 	self.hith = 30
-	self.sheet = load_image("sprites/rocks/rock1-sheet.png")
-	self.animation = initialize_animation(self.sheet, 43, 30, '1-5', 0.1)
+	self.sheet = load_image("sprites/entity/rocks/rock1-sheet.png")
+	self.animation = create_animation(self.sheet, 43, 30, '1-5', 0.1)
 	self.friendly = false
 	self.health = 5
 	self.points = 100
@@ -391,6 +622,8 @@ function Enemy_Rock:increment_counter()
 	enemy_rock_killed_count = enemy_rock_killed_count + 1
 end
 
+
+
 local Enemy_Gross = {}
 Enemy_Gross.__index = Enemy_Gross
 
@@ -406,8 +639,8 @@ function Enemy_Gross.new(x, y, dx, dy, flags)
 	self.hity = y
 	self.hitw = 23
 	self.hith = 35
-	self.sheet = load_image("sprites/gross_guy_sheet.png")
-	self.animation = initialize_animation(self.sheet, 23, 35, '1-5', 0.1)
+	self.sheet = entity_gross_guy_sheet
+	self.animation = create_animation(self.sheet, 23, 35, '1-5', 0.1)
 	self.friendly = false
 	self.health = 2
 	self.points = 50
@@ -467,8 +700,8 @@ function Enemy_Drang.new(x, y, dx, dy, flags)
 	self.dy = dy or game_dy
 	self.hitw = 36
 	self.hith = 40
-	self.sheet = load_image("sprites/drang/drang1-sheet.png")
-	self.animation = initialize_animation(self.sheet, 36, 40, '1-5', 0.1)
+	self.sheet = entity_drang1_sheet
+	self.animation = create_animation(self.sheet, 36, 40, '1-5', 0.1)
 	self.friendly = false
 	self.health = 3
 	self.points = 150
@@ -514,8 +747,8 @@ function Projectile_Water.new(x, y, dx, dy, friendly)
 	self.hitw = 20
 	self.hith = 21
 	self.dx = 500
-	self.sheet = load_image("sprites/water_drop/water_drop_sheet.png")
-	self.animation = initialize_animation(self.sheet, 20, 21, '1-4', 0.1)
+	self.sheet = entity_water_drop_sheet
+	self.animation = create_animation(self.sheet, 20, 21, '1-4', 0.1)
 	self.friendly = friendly
 	self.id = "water_drop"
 	self.health = 1
@@ -533,8 +766,8 @@ function Projectile_Red_Orb.new(x, y, dx, dy, friendly)
 	self.hity = y
 	self.hitw = 14
 	self.hith = 14
-	self.sheet = load_image("sprites/damage_orb/damage_orb-sheet.png")
-	self.animation = initialize_animation(self.sheet, 14, 14, '1-5', 0.05)
+	self.sheet = entity_damage_orb_sheet
+	self.animation = create_animation(self.sheet, 14, 14, '1-5', 0.05)
 	self.friendly = friendly
 	self.id = "damage_orb"
 	self.health = 1
@@ -555,8 +788,8 @@ function Powerup_Lil_Gabbro.new(x, y, dx, dy)
 	self.hith = 15
 	self.dx = dx
 	self.dy = dy
-	self.sheet = load_image("sprites/pickups/lil_gabbron-sheet.png")
-	self.animation = initialize_animation(self.sheet, 17, 15, '1-2', 0.1)
+	self.sheet = pickup_lilgabbron_sheet
+	self.animation = create_animation(self.sheet, 17, 15, '1-2', 0.1)
 	self.id = "powerup_lil_gabbro"
 	self.points = 1000
 	self.sound = love.audio.newSource("sounds/powerup_super.wav", "static")
@@ -603,8 +836,8 @@ function Powerup_Heart.new(x, y, dx, dy)
 	self.hith = 26
 	self.dx = dx or game_dx / 2
 	self.dy = dy
-	self.sheet = load_image("sprites/pickups/smol_cheese.png")
-	self.animation = initialize_animation(self.sheet, 26, 26, '1-1', 100)
+	self.sheet = pickup_cheese_sheet
+	self.animation = create_animation(self.sheet, 26, 26, '1-1', 100)
 	self.id = "powerup_heart"
 	self.points = 250
 	self.sound = love.audio.newSource("sounds/ploop.wav", "static")
@@ -802,8 +1035,8 @@ end
 function effect_starfield(x, y, w, h)
 	for i = 1, (w / 6) + (h / 6) do
 		star = ParticleObject.new(math.random(x, w), math.random(y, h), math.random(0, game_dx), math.random(0, game_dy), "starfield_star")
-		star.sheet = load_image("sprites/stars/star1_sheet.png")
-		star.animation = initialize_animation(star.sheet, 4, 7, '1-4', 0.1)
+		star.sheet = particle_star_sheet
+		star.animation = create_animation(star.sheet, 4, 7, '1-4', 0.1)
 		function star:update(dt)
 			self.x = self.x + self.dx * dt
 			self.y = self.y + self.dy * dt
@@ -946,7 +1179,7 @@ end
 
 function love.load()
 	love.window.setTitle("CARMINE'S RETRIBUTION")
-	love.window.setIcon(love.image.newImageData("sprites/carmine/carmine_icon.png"))
+	love.window.setIcon(love.image.newImageData("sprites/player/carmine/carmine_icon.png"))
 	load_startscreen()
 	mode = 'start'
 
@@ -1055,17 +1288,14 @@ function load_player()
 	end
 
 	local g
-	carmine_body_sheet = load_image('sprites/carmine/carmine_body_sheet.png')
-	g = anim8.newGrid(35, 23, carmine_body_sheet:getWidth(), carmine_body_sheet:getHeight())
-	carmine_body_animation = anim8.newAnimation(g('1-3', 1), 0.1)
+	carmine_body_sheet = player_carmine_body_sheet
+	carmine_body_animation = create_animation(carmine_body_sheet, 35, 23, '1-3', 1000)
 
-	carmine_wings_left_sheet = load_image('sprites/wings/carmine_wings_left_sheet.png')
-	g = anim8.newGrid(100, 100, carmine_wings_left_sheet:getWidth(), carmine_wings_left_sheet:getHeight())
-	carmine_wings_left_animation = anim8.newAnimation(g('1-4', 1), 0.1)
+	carmine_wings_left_sheet = player_carmine_left_wings_sheet
+	carmine_wings_left_animation = create_animation(carmine_wings_left_sheet, 100, 100, '1-4', 0.1)
 
-	carmine_wings_right_sheet = load_image('sprites/wings/carmine_wings_right_sheet.png')
-	g = anim8.newGrid(100, 100, carmine_wings_right_sheet:getWidth(), carmine_wings_right_sheet:getHeight())
-	carmine_wings_right_animation = anim8.newAnimation(g('1-4', 1), 0.1)
+	carmine_wings_right_sheet = player_carmine_right_wings_sheet
+	carmine_wings_right_animation = create_animation(carmine_wings_right_sheet, 100, 100, '1-4', 0.1)
 	
 	function player:draw()
 		if not timer_invulnerable then
@@ -1090,7 +1320,7 @@ function load_startscreen()
 		local l = ParticleObject.new(x, y)
 		l.id = id
 		l.sheet = load_image(letters_title[id][1])
-		l.animation = initialize_animation(l.sheet, letters_title[id][2], letters_title[id][3], '1-1', 1000)
+		l.animation = create_animation(l.sheet, letters_title[id][2], letters_title[id][3], '1-1', 1000)
 		l.colliding = false
 		l.dy = 10
 		l.firstbounce = true
@@ -1233,8 +1463,8 @@ function load_stars()
 	-- stars
 	for i = 1, 300 do
 		star = MoveableObject.new(math.random(1, game_width), math.random(1, game_height), math.random() * game_dx, math.random() * game_dy)
-		star.sheet = load_image("sprites/stars/star1_sheet.png")
-		star.animation = initialize_animation(star.sheet, 4, 7, '1-4', 0.1)
+		star.sheet = particle_star_sheet
+		star.animation = create_animation(star.sheet, 4, 7, '1-4', 0.1)
 		star.looping = true
 		table.insert(background, star)
 	end
@@ -1451,7 +1681,9 @@ function game_rules(dt)
 		end
 		local chance = math.random(0, 100)
 		if chance > 25 then
-			spawn_enemy(Enemy_Rock, x, y)
+			--spawn_enemy(Enemy_Rock, x, y)
+			local rock = create_enemy_rock(x, y, game_dx, game_dy)
+			table.insert(enemies, rock)
 		else
 			spawn_enemy(Enemy_Gross, x, y)
 		end
@@ -1659,10 +1891,14 @@ end
 function draw_enemies()
 	for i = 1, #enemies do
 		local enemy = enemies[i]
-		if enemy.flash > 0 then
-			love.graphics.setShader(shader_flash)
+		for _, i in ipairs(enemies[i].data) do
+			print(enemy.data[i])
+			print(enemy.data[i].sheet)
+			print(enemy.data[i].x)
+			print(enemy.data[i].y)
+			enemy.data[i].animation:draw(enemy.data[i].sheet, math.floor(enemy.data[i].x), math.floor(enemy.data[i].y))
 		end
-		enemy.animation:draw(enemy.sheet, math.floor(enemy.x), math.floor(enemy.y))
+		
 		love.graphics.setShader()
 	end
 end

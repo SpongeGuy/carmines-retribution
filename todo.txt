@@ -43,3 +43,4 @@ todo
 	fix up title screen
 		probably make a design first dimwit
 	old-school type credits screen displaying enemy and pickup names
+	load and cache images on game start
