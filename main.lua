@@ -142,6 +142,12 @@ end
 
 -- get if there is a collision between two objects
 function get_collision(obj1, obj2)
+	if not (obj1.hitx and obj1.hity and obj2.hitx and obj2.hity) then
+		return false
+	end
+	if obj1.hitw == 0 or obj1.hith == 0 or obj2.hitw == 0 or obj2.hith == 0 then
+		return false
+	end
 	if obj1.hitx + obj1.hitw < obj2.hitx then
 		return false
 	elseif obj1.hity > obj2.hity + obj2.hith then
@@ -158,8 +164,8 @@ function get_vector(obj1, obj2, multiplier, normalized)
 	local norm = true
 	if normalized == false then norm = false end
 
-	local dx = obj2.x - obj1.x
-	local dy = obj2.y - obj1.y
+	local dx = (obj2.hitx + obj2.hitw / 2) - (obj1.hitx + obj1.hitw / 2)
+	local dy = (obj2.hity + obj2.hith / 2) - (obj1.hity + obj2.hith / 2)
 
 	if norm then
 		local magnitude = math.sqrt(dx * dx + dy * dy)
@@ -169,6 +175,22 @@ function get_vector(obj1, obj2, multiplier, normalized)
 	end
 
 	return dx * multiplier, dy * multiplier
+end
+
+function get_game_boundaries()
+	local minX = 0
+	local maxX = game_width
+	local minY = 0
+	local maxY = game_height
+	return minX, maxX, minY, maxY
+end
+
+function get_master_obj(entity)
+	for _, obj in ipairs(entity) do
+		if obj.master then
+			return obj
+		end
+	end
 end
 
 
@@ -234,7 +256,8 @@ function Particle.new(x, y, dx, dy, lifetime, data)
 	self.y = y
 	self.dx = dx
 	self.dy = dy
-	self.timer = objects_timer_global
+	self.lifetime = lifetime
+	self.timer = timer_global
 	self.data = data
 	return self
 end
@@ -251,6 +274,8 @@ function Pickup.new(x, y, dx, dy, hitw, hith, w, h, sheet, animation)
 	self.y = y
 	self.dx = dx
 	self.dy = dy
+	self.hitx = x
+	self.hity = y
 	self.hitw = hitw
 	self.hith = hith
 	self.pickup_effect = nil
@@ -262,36 +287,6 @@ function Pickup.new(x, y, dx, dy, hitw, hith, w, h, sheet, animation)
 	self.animation = animation
 	
 	return self
-end
-
-
-
-local Player = {}
-Player.__index = Player
-
-function Player.new(data)
-	local self = setmetatable({}, Player)
-	-- this data variable will contain a table of tables containing metadata
-	-- in its update function, each table will be updated
-	-- make sure the data is in this format {{...}, {...}, {...}}
-	self.data = data
-
-	-- self.death_effects
-	-- self.death_condition
-	-- self.points
-	-- self.friendly
-	-- self.max_health
-	-- self.health
-	-- self.attack_speed
-	-- self.move_speed
-	return self
-end
-
-function Player:update(dt)
-	for t in self.data do
-		t.x = t.x + t.dx * dt
-		t.y = t.y + t.dy * dt
-	end
 end
 
 
@@ -408,16 +403,11 @@ function MoveableObject:update(dt)
 end
 
 function draw_hitbox(obj)
-	love.graphics.rectangle('line', obj.hitx, obj.hity, obj.hitw, obj.hith)
+	love.graphics.rectangle('line', math.floor(obj.hitx) - 0.25, math.floor(obj.hity) - 0.25, math.floor(obj.hitw) + 0.5, math.floor(obj.hith) + 0.5)
 end
 
 function control(obj, speed, left, right, up, down)
 	-- 250 is good value for speed
-	if obj.health <= 0 then
-		obj.dx = 0
-		obj.dy = 0
-		return
-	end
 	obj.dx = 0
 	obj.dy = 0
 	if love.keyboard.isDown(left) and obj.x > 0 then
@@ -470,54 +460,177 @@ function Graphic_Heart:update(dt)
 	end
 end
 
-local Player = {}
-Player.__index = Player
-
-setmetatable(Player, {__index = MoveableObject})
-
-function Player.new(x, y, dx, dy, hitx, hity, hitw, hith, flags)
-	local self = MoveableObject.new(x, y, dx, dy, hitx, hity, hitw, hith, flags)
-	setmetatable(self, Player)
-	self.texture_height = hith or 0
-	self.texture_width = hitw or 0
-	self.friendly = true
-	self.id = "player"
-	self.health = 3
-	return self
+function trigger_death_effects(entity, only_on_master)
+	if entity.death_effects then
+		for _, effect in ipairs(entity.death_effects) do
+			effect(entity, only_on_master)
+		end
+	end
 end
 
 function create_player_carmine(posx, posy)
 	-- init data
 	local data = {
+		
+		{ -- right wing
+			x = posx - 45,
+			y = posy - 32,
+			dx = 0,
+			dy = 0,
+			hitw = 0,
+			hith = 0,
+			sheet = player_carmine_right_wings_sheet,
+			animation = create_animation(player_carmine_right_wings_sheet, 100, 100, '1-4', 0.1),
+		},
 		{ -- body
+			master = true,
 			x = posx,
 			y = posy,
 			dx = 0,
 			dy = 0,
+			hitx = posx + 14,
+			hity = posy + 7,
 			hitw = 14,
 			hith = 7,
+			sheet = player_carmine_body_sheet,
+			animation = create_animation(player_carmine_body_sheet, 35, 23, '1-3', 1000),
 		},
 		{ -- left wing
 			x = posx - 45,
-			y = posx - 45,
+			y = posy - 32,
 			dx = 0,
 			dy = 0,
-
+			hitw = 0,
+			hith = 0,
+			sheet = player_carmine_left_wings_sheet,
+			animation = create_animation(player_carmine_left_wings_sheet, 100, 100, '1-4', 0.1),
 		},
-		{ -- right wing
-
-		}
+		
 	}
+
+	local player = Entity.new(data)
+	player.id = "player_carmine"
+	player.points = 1000
+	player.max_health = 4
+	player.health = 1
+	player.attack_speed = 1
+	player.attack_type = "none"
+	player.secondshot = false
+	player.invulnerable_delay = 2
+
+	player.timer_shot = nil
+	player.timer_secondshot = nil
+	player.timer_invulnerable = nil
+
+	player.death_effects = {
+		death_effect_points, 
+		death_effect_burst, 
+		death_effect_explode, 
+		death_effect_shockwave,
+		death_effect_break,
+	}
+
+	player.dead = false
+
+	function player:update(dt)
+		for _, obj in ipairs(self.data) do
+			obj.x = obj.x + self.data[2].dx * dt
+			obj.y = obj.y + self.data[2].dy * dt
+			if obj.hitx and obj.hity then
+				obj.hitx = obj.hitx + self.data[2].dx * dt
+				obj.hity = obj.hity + self.data[2].dy * dt
+			end
+			obj.animation:update(dt)
+		end
+		self.max_health = PLAYER_MAX_HEALTH
+		self.attack_speed = PLAYER_ATTACK_SPEED
+		if data[2].dy < 0 then
+			data[2].animation:gotoFrame(3)
+		elseif data[2].dy > 0 then
+			data[2].animation:gotoFrame(1)
+		else
+			data[2].animation:gotoFrame(2)
+		end
+
+		if self.timer_shot and timer_global - self.timer_shot > self.attack_speed then
+			self.timer_shot = nil
+		end
+		if self.timer_invulnerable and timer_global - self.timer_invulnerable > self.invulnerable_delay then
+			self.timer_invulnerable = nil
+		end
+
+		if self.health <= 0 then
+			trigger_death_effects(self, true)
+			self.dead = true
+		end
+	end
+
+	function player:shoot(dt)
+		if self.health <= 0 then
+			return
+		end
+
+		shot_circ_x = data[2].x + 30
+		shot_circ_y = data[2].y + 10
+		if shot_circ_r > 0 then
+			shot_circ_r = shot_circ_r - 180 * dt
+		end
+
+		if shot_circ_r < 0 then shot_circ_r = 0 end
+
+		-- water drop
+		if love.keyboard.isDown('space') and not self.timer_shot then
+			shot_circ_r = 25
+			self.timer_shot = timer_global
+			key_space_pressed = true
+
+			-- shot types / abilities ???
+			if self.attack_type == "single_water_shot" then
+				single_water_shot(math.floor(data[2].x + 10), math.floor(data[2].y), 550, 0, true)
+			elseif self.attack_type == "double_water_shot" then
+				double_water_shot(math.floor(data[2].x + 10), math.floor(data[2].y), 550, 0, true)
+			end
+			if self.secondshot then
+				self.timer_secondshot = timer_global
+			end
+		end
+
+		if self.timer_secondshot and timer_global - self.timer_secondshot > self.attack_speed/2 then
+			local water = Projectile_Water.new(math.floor(data[2].x + 10), math.floor(data[2].y), 550, 0, true)
+			table.insert(bullets, water)
+			self.timer_secondshot = nil 
+			local sound = love.audio.newSource("sounds/ball_shot.wav", 'static')
+			sound:play()
+			shot_circ_r = 20
+		end
+	end
+
+	function player:draw()
+		if not self.timer_invulnerable then
+			for i = 1, 3 do
+				data[i].animation:draw(data[i].sheet, math.floor(data[i].x), math.floor(data[i].y))
+			end
+		elseif math.sin(timer_global * 50) < 0.5 then
+			for i = 1, 3 do
+				data[i].animation:draw(data[i].sheet, math.floor(data[i].x), math.floor(data[i].y))
+			end
+		end
+		draw_hitbox(self.data[2])
+	end
+	return player
 end
 
 function create_enemy_rock(posx, posy, deltax, deltay)
 	-- init data
 	local data = {
 		{
+			master = true,
 			x = posx,
 			y = posy,
 			dx = deltax,
 			dy = deltay,
+			hitx = posx,
+			hity = posy,
 			hitw = 43,
 			hith = 30,
 			sheet = entity_rock1_sheet,
@@ -531,6 +644,8 @@ function create_enemy_rock(posx, posy, deltax, deltay)
 	rock.health = 5
 	rock.points = 100
 	rock.timer = timer_global
+	rock.flash = 0
+	rock.friendly = false
 	rock.death_effects = {
 		death_effect_points, 
 		death_effect_burst, 
@@ -538,23 +653,50 @@ function create_enemy_rock(posx, posy, deltax, deltay)
 		death_effect_shockwave,
 		death_effect_sound_blockhit,
 		death_effect_break,
-		death_effect_spawn_lilgabbro,
-		death_effect_spawn_heart,
+		--death_effect_spawn_lilgabbro,
+		--death_effect_spawn_heart,
 	}
+	rock.dead = false
 
 	-- update function
 	function rock:update(dt)
-		for t in self.data do
+		for _, t in ipairs(self.data) do
 			t.x = t.x + t.dx * dt
 			t.y = t.y + t.dy * dt
+			t.hitx = t.hitx + t.dx * dt
+			t.hity = t.hity + t.dy * dt
 			t.animation:update(dt)
 		end
 		if player and timer_global - self.timer > 1 then
 			self.timer = timer_global
 			local chance = math.random(1, 100)
 			if chance < 15 then
-				local pdx, pdy = get_vector(self, player, 200, true)
-				red_orb_shot(self.x + self.hitw / 2, self.y + self.hith / 2, pdx, pdy, false)
+				local pdx, pdy = get_vector(self.data[1], player.data[2], 200, true)
+				red_orb_shot(self.data[1].x + self.data[1].hitw / 2, self.data[1].y + self.data[1].hith / 2, pdx, pdy, false)
+			end
+		end
+		-- controls white shader effect on hit
+		if self.flash and self.flash > 0 then
+			self.flash = self.flash - (1 * dt)
+		end
+
+		-- enemy death scenarios
+		if self.health <= 0 then
+			self.trigger_death_effects()
+			self.increment_counter()
+			self.dead = true
+		end
+
+		local x1, x2, y1, y2 = get_game_boundaries()
+		if self.data[1].x < x1 - 100 or self.data[1].x > x2 + 100 or self.data[1].y < y1 - 100 or self.data[1].y > y2 + 100 then
+			self.dead = true
+		end
+	end
+
+	function rock:trigger_death_effects()
+		if self.death_effects then
+			for _, effect in ipairs(self.death_effects) do
+				effect(self, false)
 			end
 		end
 	end
@@ -568,65 +710,6 @@ function create_enemy_rock(posx, posy, deltax, deltay)
 	return rock
 end
 
-local Enemy_Rock = {}
-Enemy_Rock.__index = Enemy_Rock
-
-setmetatable(Enemy_Rock, {__index = MoveableObject})
-
-function Enemy_Rock.new(x, y, dx, dy, flags)
-	local flags = flags or {}
-	local self = MoveableObject.new(x, y, dx, dy, hitx, hity, hitw, hith, flags)
-<<<<<<< HEAD
-	self.dx = dx or -150
-	self.dy = dy or 0
-=======
-	setmetatable(self, Enemy_Rock)
->>>>>>> 0a93b1a16a954f13a3fd093f33b6246e92ffb127
-	self.hitx = x
-	self.hity = y
-	self.dx = dx or game_dx * 0.75
-	self.dy = dy or game_dy * 0.75
-	self.hitw = 43
-	self.hith = 30
-	self.sheet = load_image("sprites/entity/rocks/rock1-sheet.png")
-	self.animation = create_animation(self.sheet, 43, 30, '1-5', 0.1)
-	self.friendly = false
-	self.health = 5
-	self.points = 100
-	self.id = "evil_rock"
-	self.timer = timer_global
-
-	self.death_effects = {
-		death_effect_points, 
-		death_effect_burst, 
-		death_effect_explode, 
-		death_effect_shockwave,
-		death_effect_sound_blockhit,
-		death_effect_break,
-		death_effect_spawn_lilgabbro,
-		death_effect_spawn_heart,
-	}
-	
-	return self
-end
-
-function Enemy_Rock:update(dt)
-	MoveableObject.update(self, dt)
-	if player and timer_global - self.timer > 1 then
-		self.timer = timer_global
-		local chance = math.random(1, 100)
-		if chance < 15 then
-			local pdx, pdy = get_vector(self, player, 200, true)
-			red_orb_shot(self.x + self.hitw / 2, self.y + self.hith / 2, pdx, pdy, false)
-		end
-	end
-end
-
-function Enemy_Rock:increment_counter()
-	enemy_killed_count = enemy_killed_count + 1
-	enemy_rock_killed_count = enemy_rock_killed_count + 1
-end
-
 
 
 local Enemy_Gross = {}
@@ -638,13 +721,8 @@ function Enemy_Gross.new(x, y, dx, dy, flags)
 	local flags = flags or {}
 	local self = MoveableObject.new(x, y, dx, dy, hitx, hity, hitw, hith, flags)
 	setmetatable(self, Enemy_Gross)
-<<<<<<< HEAD
-	self.dx = dx or -200
-	self.dy = dy or 0
-=======
 	self.dx = dx or game_dx
 	self.dy = dy or game_dy
->>>>>>> 0a93b1a16a954f13a3fd093f33b6246e92ffb127
 	self.hitx = x
 	self.hity = y
 	self.hitw = 23
@@ -660,8 +738,7 @@ function Enemy_Gross.new(x, y, dx, dy, flags)
 	self.copies = flags.copies or 5
 	self.copying = flags.copying or true
 	self.switched = false
-<<<<<<< HEAD
-=======
+
 	self.death_effects = {
 		death_effect_points, 
 		death_effect_burst, 
@@ -671,7 +748,6 @@ function Enemy_Gross.new(x, y, dx, dy, flags)
 		death_effect_break,
 	}
 
->>>>>>> 0a93b1a16a954f13a3fd093f33b6246e92ffb127
 	return self
 end
 
@@ -682,11 +758,7 @@ function Enemy_Gross:update(dt)
 		self.copying = false
 		table.insert(enemies, copy)
 	end
-<<<<<<< HEAD
-	if self.x < 100 and not self.switched then
-=======
 	if self.x < 100 and not self.switched and self.y < game_height / 2 then
->>>>>>> 0a93b1a16a954f13a3fd093f33b6246e92ffb127
 		self.switched = true
 		self.dx = -self.dx * 0.707
 		self.dy = self.dx
@@ -772,23 +844,38 @@ function Projectile_Water.new(x, y, dx, dy, friendly)
 	return self
 end
 
-local Projectile_Red_Orb = {}
-Projectile_Red_Orb.__index = Projectile_Red_Orb
+function create_projectile_red_orb(posx, posy, deltax, deltay, friendly)
+	local data = {
+		{
+			x = posx,
+			y = posy,
+			dx = deltax,
+			dy = deltay,
+			hitx = posx,
+			hity = posy,
+			hitw = 43,
+			hith = 30,
+			sheet = entity_damage_orb_sheet,
+			animation = create_animation(entity_damage_orb_sheet, 14, 14, '1-5', 0.05)
+		},
+	}
 
-setmetatable(Projectile_Red_Orb, {__index = MoveableObject})
+	local orb = Entity.new(data)
+	orb.id = "damage_orb"
+	orb.health = 1
+	orb.friendly = false
 
-function Projectile_Red_Orb.new(x, y, dx, dy, friendly)
-	local self = MoveableObject.new(x, y, dx, dy)
-	self.hitx = x
-	self.hity = y
-	self.hitw = 14
-	self.hith = 14
-	self.sheet = entity_damage_orb_sheet
-	self.animation = create_animation(self.sheet, 14, 14, '1-5', 0.05)
-	self.friendly = friendly
-	self.id = "damage_orb"
-	self.health = 1
-	return self
+	function orb:update(dt)
+		for _, data in ipairs(self.data) do
+			data.x = data.x + data.dx * dt
+			data.y = data.y + data.dy * dt
+			data.hitx = data.hitx + data.dx * dt
+			data.hity = data.hity + data.dy * dt
+			data.animation:update(dt)
+		end
+	end
+
+	return orb
 end
 
 local Powerup_Lil_Gabbro = {}
@@ -939,40 +1026,45 @@ function effect_points(x, y, dx, dy, points, apply)
 	if apply == false then
 		a = false
 	end
-	local pp = ParticleObject.new(x, y, dx, dy, "effect_points")
-	pp.points = points
-	pp.timer = pp.timer + 0.5
-	if a then 
+	local pp = Particle.new(x, y, dx, dy, 3, points)
+	pp.timer = pp.timer - pp.lifetime
+	pp.id = "effect_message"
+	if a then
 		score = score + points 
+	end
+	function pp:update(dt)
+		self.x = (self.x + self.dx * dt)
+		self.y = (self.y + self.dy * dt)
 	end
 	table.insert(particles, pp)
 end
 
-function create_text(x, y, dx, dy, text, delay)
-	local msg = ParticleObject.new(x, y, dx, dy, "display_text")
-	msg.color = 22
-	msg.obj = love.graphics.newText(font_gamer_med, text)
-	if delay then
-		msg.timer = msg.timer + delay
+-- function create_text(x, y, dx, dy, text, delay)
+-- 	local msg = ParticleObject.new(x, y, dx, dy, "display_text")
+-- 	msg.color = 22
+-- 	msg.obj = love.graphics.newText(font_gamer_med, text)
+-- 	if delay then
+-- 		msg.timer = msg.timer + delay
+-- 	end
+
+-- 	return msg
+-- end
+
+function effect_message(x, y, dx, dy, text, lifetime)
+	local msg = Particle.new(x, y, dx, dy, lifetime, text)
+	msg.timer = msg.timer - lifetime
+	msg.id = "effect_message"
+	function msg:update(dt)
+		self.x = (self.x + self.dx * dt)
+		self.y = (self.y + self.dy * dt)
 	end
-
-	return msg
-end
-
-function effect_message(x, y, dx, dy, text, delay)
-
-	local msg = ParticleObject.new(x, y, dx, dy, "effect_points")
-	msg.points = text
-	msg.timer = msg.timer + 0.5
-	if delay then
-		msg.timer = msg.timer + delay
-	end
-	
 	table.insert(particles, msg)
 end
 
 function effect_shockwave(x, y, dx, dy, r, dr, da)
-	local myp = ParticleObject.new(x, y, dx, dy, "effect_shockwave")
+	local myp = Particle.new(x, y, dx, dy, 1, nil)
+	myp.data = math.random() * 0.25
+	myp.id = "effect_shockwave"
 	myp.r = r or 1
 	myp.alpha = 1
 	myp.dr = dr or 250--* math.random() * 1.5
@@ -986,18 +1078,20 @@ function effect_shockwave(x, y, dx, dy, r, dr, da)
 		self.dr = self.dr * (1 - decrease_per_frame)
 		self.alpha = self.alpha - da * dt
 	end
-	myp.timer = myp.timer + myp.seed - 0.5
+	myp.timer = myp.timer - myp.lifetime
 	for i = 1, 3 do
 		table.insert(explosions, myp)
 	end
 end
 
 function effect_break(x, y, dx, dy)
-	local myp = ParticleObject.new(x, y, dx, dy, "effect_break")
+	local myp = Particle.new(x, y, dx, dy, 1, nil)
+	myp.data = math.random() * 0.25
+	myp.id = "effect_break"
 	myp.dx = dx or math.random(-300, 300)
 	myp.dy = dy or math.random(-300, 300)
 	myp.r = 1
-	myp.timer = myp.timer + myp.seed - 1.5
+	myp.timer = myp.timer + myp.data - 1.5
 	function myp:update(dt)
 		self.x = (self.x + self.dx * dt)
 		self.y = (self.y + self.dy * dt)
@@ -1011,7 +1105,8 @@ function effect_break(x, y, dx, dy)
 end
 
 function effect_burst(x, y, dx, dy, r, dr)
-	local myp = ParticleObject.new(x, y, dx, dy, "effect_burst")
+	local myp = Particle.new(x, y, dx, dy, 0, nil)
+	myp.id = "effect_burst"
 	myp.r = r or 30
 	myp.dr = dr or 200
 	function myp:update(dt)
@@ -1030,7 +1125,12 @@ end
 
 -- MAKES AN EXPLOSION AT A COORDINATE
 function effect_explode(x, y, dx, dy)
-	local myp = ParticleObject.new(x, y, dx, dy, "effect_explosion")
+	local myp = Particle.new(x, y, dx, dy, 2, nil)
+	myp.data = math.random() * 0.25
+	myp.id = "effect_explosion"
+	myp.r = math.floor(math.random(4, 8))
+	myp.timer = myp.timer - myp.lifetime + myp.data
+
 	function myp:update(dt)
 		self.x = (self.x + self.dx * dt)
 		self.y = (self.y + self.dy * dt)
@@ -1044,16 +1144,15 @@ function effect_explode(x, y, dx, dy)
 		self.dy = self.dy * (1 - decrease_per_frame)
 
 	end
-	myp.r = math.floor(math.random(4, 8))
-	myp.timer = myp.timer + myp.seed
 	table.insert(particles, myp)
 end
 
 function effect_starfield(x, y, w, h)
 	for i = 1, (w / 6) + (h / 6) do
-		star = ParticleObject.new(math.random(x, w), math.random(y, h), math.random(0, game_dx), math.random(0, game_dy), "starfield_star")
+		star = Particle.new(math.random(x, w), math.random(y, h), math.random(0, game_dx), math.random(0, game_dy), nil, nil)
+		star.id = "starfield_star"
 		star.sheet = particle_star_sheet
-		star.animation = create_animation(star.sheet, 4, 7, '1-4', 0.1)
+		star.animation = create_animation(particle_star_sheet, 4, 7, '1-4', 0.1)
 		function star:update(dt)
 			self.x = self.x + self.dx * dt
 			self.y = self.y + self.dy * dt
@@ -1070,76 +1169,170 @@ end
 
 
 
-function death_effect_explode(enemy)
-	local pointX = enemy.x + enemy.hitw/2
-	local pointY = enemy.y + enemy.hith/2
+function death_effect_explode(entity, only_on_master)
+	if only_on_master == true then
+		local obj = get_master_obj(entity)
+		local pointX = obj.x + obj.hitw/2
+		local pointY = obj.y + obj.hith/2
 
-	for p  = 1, 50 do
-		effect_explode(pointX, pointY, math.random(-150, 150) + enemy.dx, math.random(-150, 150) + enemy.dy)
+		for p  = 1, 50 do
+			effect_explode(pointX, pointY, math.random(-150, 150) + obj.dx, math.random(-150, 150) + obj.dy)
+		end
+	else
+		print(entity)
+		for _, obj in ipairs(entity.data) do
+			local pointX = obj.x + obj.hitw/2
+			local pointY = obj.y + obj.hith/2
+
+			for p  = 1, 50 do
+				effect_explode(pointX, pointY, math.random(-150, 150) + obj.dx, math.random(-150, 150) + obj.dy)
+			end
+		end
 	end
+	
 end
 
-function death_effect_shockwave(enemy)
-	local pointX = enemy.x + enemy.hitw/2
-	local pointY = enemy.y + enemy.hith/2
+function death_effect_shockwave(entity, only_on_master)
+	if only_on_master then
+		local obj = get_master_obj(entity)
+		local pointX = obj.x + obj.hitw/2
+		local pointY = obj.y + obj.hith/2
 
-	effect_shockwave(pointX, pointY, enemy.dx / 2, enemy.dy / 2)
-end
+		effect_shockwave(pointX, pointY, obj.dx / 2, obj.dy / 2)
+	else
+		for _, obj in ipairs(entity.data) do
+			local pointX = obj.x + obj.hitw/2
+			local pointY = obj.y + obj.hith/2
 
-function death_effect_burst(enemy)
-	local pointX = enemy.x + enemy.hitw/2
-	local pointY = enemy.y + enemy.hith/2
-
-	effect_burst(pointX, pointY, enemy.dx * 0.75, enemy.dy * 0.75, 50)
-end
-
-function death_effect_break(enemy)
-	local pointX = enemy.x + enemy.hitw/2
-	local pointY = enemy.y + enemy.hith/2
-
-	for i = 1, 50 do
-		effect_break(pointX, pointY, enemy.dx + math.random(-300, 300), enemy.dy + math.random(-300, 300))
+			effect_shockwave(pointX, pointY, obj.dx / 2, obj.dy / 2)
+		end
 	end
+	
 end
 
-function death_effect_sound_blockhit(enemy)
+function death_effect_burst(entity, only_on_master)
+	if only_on_master then
+		local obj = get_master_obj(entity)
+		local pointX = obj.x + obj.hitw/2
+		local pointY = obj.y + obj.hith/2
+
+		effect_burst(pointX, pointY, obj.dx * 0.75, obj.dy * 0.75, 50)
+	else
+		for _, obj in ipairs(entity.data) do
+			local pointX = obj.x + obj.hitw/2
+			local pointY = obj.y + obj.hith/2
+
+			effect_burst(pointX, pointY, obj.dx * 0.75, obj.dy * 0.75, 50)
+		end
+	end
+	
+end
+
+function death_effect_break(entity, only_on_master)
+	if only_on_master then
+		local obj = get_master_obj(entity)
+		local pointX = obj.x + obj.hitw/2
+		local pointY = obj.y + obj.hith/2
+
+		for i = 1, 50 do
+			effect_break(pointX, pointY, obj.dx + math.random(-300, 300), obj.dy + math.random(-300, 300))
+		end
+	else
+		for _, obj in ipairs(entity.data) do
+			local pointX = obj.x + obj.hitw/2
+			local pointY = obj.y + obj.hith/2
+
+			for i = 1, 50 do
+				effect_break(pointX, pointY, obj.dx + math.random(-300, 300), obj.dy + math.random(-300, 300))
+			end
+		end
+	end
+	
+end
+
+function death_effect_sound_blockhit(entity, only_on_master)
 	local sound = love.audio.newSource("sounds/block_hit.wav", 'static')
 	sound:play()
 end
 
-function death_effect_spawn_lilgabbro(enemy)
-	local pointX = enemy.x + enemy.hitw/2
-	local pointY = enemy.y + enemy.hith/2
+function death_effect_spawn_lilgabbro(entity, only_on_master)
+	local sound = love.audio.newSource("sounds/poink.wav", "static")
+	if only_on_master then
+		local obj = get_master_obj(entity)
+		local pointX = obj.x + obj.hitw/2
+		local pointY = obj.y + obj.hith/2
 
-	local value = math.random(1, 100)
-	if value < 25 then
-		spawn_powerup(Powerup_Lil_Gabbro, pointX, pointY)
-		local sound = love.audio.newSource("sounds/poink.wav", "static")
-		sound:play()
+		local value = math.random(1, 100)
+		if value < 25 then
+			spawn_powerup(Powerup_Lil_Gabbro, pointX, pointY)
+			sound:play()
+		end
+	else
+		for _, obj in ipairs(entity.data) do
+			local pointX = obj.x + obj.hitw/2
+			local pointY = obj.y + obj.hith/2
+
+			local value = math.random(1, 100)
+			if value < 25 then
+				spawn_powerup(Powerup_Lil_Gabbro, pointX, pointY)
+				sound:play()
+			end
+		end
 	end
-end
-
-function death_effect_spawn_heart(enemy)
-	local pointX = enemy.x + enemy.hitw/2
-	local pointY = enemy.y + enemy.hith/2
-
-	local value = math.random(1, 100)
-	if enemy.chance_100_heart then
-		value = 1
-	end
-	if value < 5 then
-		spawn_powerup(Powerup_Heart, pointX, pointY)
-		local sound = love.audio.newSource("sounds/poink.wav", "static")
-		sound:play()
-	end
-end
-
-function death_effect_points(enemy, apply)
-	local pointX = enemy.x + enemy.hitw/2
-	local pointY = enemy.y + enemy.hith/2
-	local points = enemy.points
 	
-	effect_points(pointX, pointY, enemy.dx / 2.5 + math.random(-50, 50), math.random(-50, 50), points, apply)
+end
+
+function death_effect_spawn_heart(entity, only_on_master)
+	local sound = love.audio.newSource("sounds/poink.wav", "static")
+	if only_on_master then
+		local obj = get_master_obj(entity)
+		local pointX = obj.x + obj.hitw/2
+		local pointY = obj.y + obj.hith/2
+
+		local value = math.random(1, 100)
+		if obj.chance_100_heart then
+			value = 1
+		end
+		if value < 5 then
+			spawn_powerup(Powerup_Heart, pointX, pointY)
+			sound:play()
+		end
+	else
+		for _, obj in ipairs(entity.data) do
+			local pointX = obj.x + obj.hitw/2
+			local pointY = obj.y + obj.hith/2
+
+			local value = math.random(1, 100)
+			if obj.chance_100_heart then
+				value = 1
+			end
+			if value < 5 then
+				spawn_powerup(Powerup_Heart, pointX, pointY)
+				sound:play()
+			end
+		end
+	end
+	
+end
+
+function death_effect_points(entity, only_on_master, apply)
+	if only_on_master then
+		local obj = get_master_obj(entity)
+		local pointX = obj.x + obj.hitw/2
+		local pointY = obj.y + obj.hith/2
+		local points = obj.points
+		effect_points(pointX, pointY, enemy.dx / 2.5 + math.random(-50, 50), math.random(-50, 50), points, apply)
+	else
+		for _, obj in ipairs(entity.data) do
+			local pointX = obj.x + obj.hitw/2
+			local pointY = obj.y + obj.hith/2
+			local points = obj.points
+			effect_points(pointX, pointY, enemy.dx / 2.5 + math.random(-50, 50), math.random(-50, 50), points, apply)
+		end
+	end
+	
+	
+	
 end
 
 
@@ -1176,7 +1369,7 @@ function double_water_shot(x, y, dx, dy, friendly)
 end
 
 function red_orb_shot(x, y, dx, dy, friendly)
-	local orb = Projectile_Red_Orb.new(x, y, dx, dy, friendly)
+	local orb = create_projectile_red_orb(x, y, dx, dy, friendly)
 	local sound = love.audio.newSource("sounds/weak_shot.wav", 'static')
 	sound:play()
 
@@ -1237,97 +1430,10 @@ end
 
 function load_player()
 	-- important attributes
-	player_max_health = 4
-	player_attack_speed = 0.25
+	PLAYER_MAX_HEALTH = 4
+	PLAYER_ATTACK_SPEED = 0.25
 
-
-	-- player
-	player = MoveableObject.new(100, 200, 0, 0, 114, 208, 14, 7)
-	player.id = "player"
-	player.points = 1000
-	player.max_health = player_max_health
-	player.health = 4
-	player.attack_speed = player_attack_speed
-	player.attack_type = "double_water_shot"
-	player.secondshot = true
-	function player:update(dt)
-		MoveableObject.update(self, dt)
-		-- important attributes here
-		self.max_health = player_max_health
-		self.attack_speed = player_attack_speed
-		if player.dy < 0 then
-			carmine_body_animation:gotoFrame(3)
-		elseif player.dy > 0 then
-			carmine_body_animation:gotoFrame(1)
-		else
-			carmine_body_animation:gotoFrame(2)
-		end
-	end
-	function player:shoot(dt)
-		if self.health <= 0 then
-			return
-		end
-		-- shot effect_burst data
-		shot_circ_x = player.x + 30
-		shot_circ_y = player.y + 10
-		if shot_circ_r > 0 then
-			shot_circ_r = shot_circ_r - 180 * dt
-		end
-		if shot_circ_r < 0 then shot_circ_r = 0 end
-
-		-- water drop
-		if love.keyboard.isDown('space') and not timer_shot then
-			shot_circ_r = 25
-			timer_shot = timer_global
-			key_space_pressed = true
-
-			-- shot types / abilities ???
-			if player.attack_type == "single_water_shot" then
-				single_water_shot(math.floor(player.x + 10), math.floor(player.y), 550, 0, true)
-			elseif player.attack_type == "double_water_shot" then
-				double_water_shot(math.floor(player.x + 10), math.floor(player.y), 550, 0, true)
-			end
-			if player.secondshot then
-				timer_secondshot = timer_global
-			end
-
-
-		end
-
-		if timer_secondshot and timer_global - timer_secondshot > player.attack_speed/2 then
-			local water = Projectile_Water.new(math.floor(player.x + 10), math.floor(player.y), 550, 0, true)
-			table.insert(bullets, water)
-			timer_secondshot = nilv 
-			local sound = love.audio.newSource("sounds/ball_shot.wav", 'static')
-			sound:play()
-			shot_circ_r = 20
-		end
-	end
-
-	local g
-	carmine_body_sheet = player_carmine_body_sheet
-	carmine_body_animation = create_animation(carmine_body_sheet, 35, 23, '1-3', 1000)
-
-	carmine_wings_left_sheet = player_carmine_left_wings_sheet
-	carmine_wings_left_animation = create_animation(carmine_wings_left_sheet, 100, 100, '1-4', 0.1)
-
-	carmine_wings_right_sheet = player_carmine_right_wings_sheet
-	carmine_wings_right_animation = create_animation(carmine_wings_right_sheet, 100, 100, '1-4', 0.1)
-	
-	function player:draw()
-		if not timer_invulnerable then
-			carmine_wings_left_animation:draw(carmine_wings_right_sheet, math.floor(player.x - 45), math.floor(player.y - 35))
-			carmine_body_animation:draw(carmine_body_sheet, math.floor(player.x), math.floor(player.y))
-			carmine_wings_right_animation:draw(carmine_wings_left_sheet, math.floor(player.x - 45), math.floor(player.y - 35))
-		else
-			if math.sin(timer_global * 50) < 0.5 then
-				carmine_wings_left_animation:draw(carmine_wings_right_sheet, math.floor(player.x - 45), math.floor(player.y - 35))
-				carmine_body_animation:draw(carmine_body_sheet, math.floor(player.x), math.floor(player.y))
-				carmine_wings_right_animation:draw(carmine_wings_left_sheet, math.floor(player.x - 45), math.floor(player.y - 35))
-			end
-		end
-	end
-
+	player = create_player_carmine(100, 200)
 	
 end
 
@@ -1440,8 +1546,8 @@ function load_ui()
 	hearts = {}
 	ui_hearts_x = ui_label_life_x
 	ui_hearts_y = ui_label_life_y + ui_label_life:getHeight()
-	ui_hearts_length = 13 * player_max_health
-	for i = 1, player_max_health do
+	ui_hearts_length = 13 * PLAYER_MAX_HEALTH
+	for i = 1, PLAYER_MAX_HEALTH do
 		table.insert(hearts, Graphic_Heart.new(ui_hearts_x + (12 * (i - 1)), ui_hearts_y, 0, 0))
 	end
 	
@@ -1557,13 +1663,7 @@ function update_enemies(dt)
 	for i = #enemies, 1, -1 do
 		local enemy = enemies[i]
 		enemy:update(dt)
-		local enemy_left_game_area = (enemy.x > (window_width / window_scale) + 200 or enemy.x < -200) or (enemy.y > (window_height / window_scale) + 200 or enemy.y < -200)
-		local enemy_dead = enemy.health and enemy.health <= 0
-		if enemy_dead then
-			enemy:trigger_death_effects()
-			enemy:increment_counter()
-		end
-		if enemy_left_game_area or enemy_dead then
+		if enemy.dead then
 			table.remove(enemies, i)
 		end
 	end
@@ -1582,10 +1682,14 @@ function update_bullets(dt)
 	for i = #bullets, 1, -1 do
 		local bullet = bullets[i]
 		bullet:update(dt)
-		local bullet_left_game_area = (bullet.x > (window_width / window_scale) + 200 or bullet.x < -200) or (bullet.y > (window_height / window_scale) + 200 or bullet.y < -200)
-		local bullet_dead = bullet.health and bullet.health <= 0
-		if bullet_left_game_area or bullet_dead then
-			table.remove(bullets, i)
+		local bullet_left_game_area = false
+		local bullet_dead = false
+		for _, data in ipairs(bullets[i].data) do
+			local bullet_left_game_area = (data.x > (window_width / window_scale) + 200 or data.x < -200) or (data.y > (window_height / window_scale) + 200 or data.y < -200)
+			local bullet_dead = bullet.health and bullet.health <= 0
+			if bullet_left_game_area or bullet_dead then
+				table.remove(bullets, i)
+			end
 		end
 	end
 end
@@ -1595,7 +1699,7 @@ function update_hearts(dt)
 	for i = #hearts, 1, -1 do
 		hearts[i].full = false
 	end
-	for i = 1, player_max_health do
+	for i = 1, PLAYER_MAX_HEALTH do
 		if player and i <= player.health then
 			hearts[i].full = true
 		else
@@ -1631,7 +1735,7 @@ function update_explosions(dt)
 	for i = #explosions, 1, -1 do
 		local explosion = explosions[i]
 		explosion:update(dt)
-		if explosion.r <= 0 or timer_global - explosion.timer > 2 then
+		if explosion.r <= 0 or timer_global - explosion.timer > 0 then
 			table.remove(explosions, i)
 		end
 	end
@@ -1650,10 +1754,11 @@ end
 
 function update_particles(dt)
 	for i = #particles, 1, -1 do
+		print(particles[i].id)
 		local particle = particles[i]
 		particle:update(dt)
 		local particle_left_game_area = (particle.x > (game_width) + 200 or particle.x < -200) or (particle.y > (game_height) + 200 or particle.y < -200)
-		if (timer_global - particle.timer > 2 + particle.seed) or particle_left_game_area then
+		if (timer_global - particle.timer > 2 + particle.data) or particle_left_game_area then
 			table.remove(particles, i)
 		end
 	end
@@ -1663,18 +1768,10 @@ function update_player(dt)
 	if not player then
 		return
 	end
-	if player.health <= 0 then
-		death_effect_explode(player)
-		death_effect_break(player)
-		death_effect_shockwave(player)
-		death_effect_burst(player)
-		death_effect_points(player, false)
-		player = nil
-		return
+	print(player)
+	for _, obj in ipairs(player.data) do
+		control(obj, 250, "a", "d", "w", "s")
 	end
-	carmine_wings_left_animation:update(dt)
-	carmine_wings_right_animation:update(dt)
-	control(player, 250, "a", "d", "w", "s")
 	player:update(dt)
 	player:shoot(dt)
 	
@@ -1702,10 +1799,10 @@ function game_rules(dt)
 			local rock = create_enemy_rock(x, y, game_dx, game_dy)
 			table.insert(enemies, rock)
 		else
-			spawn_enemy(Enemy_Gross, x, y)
+			--spawn_enemy(Enemy_Gross, x, y)
 		end
 		if chance < 5 * game_difficulty_factor then
-			spawn_enemy(Enemy_Drang, x, y)
+			--spawn_enemy(Enemy_Drang, x, y)
 		end
 		timer_enemy_spawner = timer_global
 	end
@@ -1717,6 +1814,7 @@ function game_rules(dt)
 		timer_game_speed = timer_global
 	end
 end
+
 
 
 function update_game(dt)
@@ -1737,18 +1835,13 @@ function update_game(dt)
 		timer_global = 1
 	end
 
-	-- invulnerability timer
-	if timer_invulnerable and timer_global - timer_invulnerable > 2 then
-		timer_invulnerable = nil
-	end
-	-- shot timer
-	if timer_shot and timer_global - timer_shot > player_attack_speed then
-		timer_shot = nil
-	end
+	-- local temp_counter = 0
+	-- for _, dude in ipairs(enemies) do
+	-- 	temp_counter = temp_counter + 1
+	-- end
+	-- logstring = logstring .. temp_counter
 
-	
-	
-	
+
 	-- collection updates
 	update_bullets(dt)
 	update_background(dt)
@@ -1764,19 +1857,20 @@ function update_game(dt)
 	
 	-- collision effects
 	for i = #enemies, 1, -1 do -- friendly bullet collide with enemy
-		for p = #bullets, 1, -1 do
-			if bullets[p].friendly and not enemies[i].friendly and get_collision(enemies[i], bullets[p]) then
-				enemies[i].health = enemies[i].health - 1
-				bullets[p].health = bullets[p].health - 1
+		for _, data in ipairs(enemies[i].data) do
+			for p = #bullets, 1, -1 do
+				if bullets[p].friendly and not enemies[i].friendly and get_collision(data, bullets[p]) then
+					enemies[i].health = enemies[i].health - 1
+					bullets[p].health = bullets[p].health - 1
 
-				local sound = love.audio.newSource("sounds/deep_hit.wav", 'static')
-				sound:play()
-				effect_shockwave(bullets[p].x + bullets[p].hitw/2, bullets[p].y + bullets[p].hith/2, bullets[p].dx * 0.05, bullets[p].dy * 0.05, 1, 50)
-				for fewji = 1, 3 do
-					effect_break(enemies[i].x + enemies[i].hitw / 2, enemies[i].y + enemies[i].hith / 2)
+					local sound = love.audio.newSource("sounds/deep_hit.wav", 'static')
+					sound:play()
+					effect_shockwave(bullets[p].x + bullets[p].hitw/2, bullets[p].y + bullets[p].hith/2, bullets[p].dx * 0.05, bullets[p].dy * 0.05, 1, 50)
+					for fewji = 1, 3 do
+						effect_break(data.x + data.hitw / 2, data.y + data.hith / 2)
+					end
+					enemies[i].flash = 0.05
 				end
-				enemies[i].flash = 0.05
-
 			end
 		end
 	end
@@ -1791,34 +1885,40 @@ function update_game(dt)
 	
 
 	for i = 1, #enemies do -- enemy collide with player
-		if not enemies[i].friendly and get_collision(player, enemies[i]) then
-			if not timer_invulnerable then
-				sound_slash:play()
-				enemies[i].health = enemies[i].health - 1
-				player.health = player.health - 1
+		for _, obj in ipairs(enemies[i].data) do
+			if not enemies[i].friendly and get_collision(player.data[2], obj) then
+				if not player.timer_invulnerable then
+					sound_slash:play()
+					enemies[i].health = enemies[i].health - 1
+					player.health = player.health - 1
 
-				local sound = love.audio.newSource("sounds/deep_hit.wav", "static")
-				sound:play()
+					local sound = love.audio.newSource("sounds/deep_hit.wav", "static")
+					sound:play()
 
-				enemies[i].flash = 0.05
-				timer_invulnerable = timer_global
-				return
-			else
-				
-				
+					enemies[i].flash = 0.05
+					player.timer_invulnerable = timer_global
+					return
+				else
+					
+					
+				end
 			end
 		end
 	end
 	for i = 1, #bullets do -- enemy bullet collide with player
-		if not bullets[i].friendly and get_collision(player, bullets[i]) then
-			if not timer_invulnerable then
-				sound_slash:play()
-				player.health = player.health - 1
-				timer_invulnerable = timer_global
-				return
-			else
-				
-				
+		print(bullets[i].id)
+		for _, obj in ipairs(bullets[i].data) do
+			if not bullets[i].friendly and get_collision(player.data[2], obj) then
+				if not timer_invulnerable then
+					sound_slash:play()
+					player.health = player.health - 1
+					player.timer_invulnerable = timer_global
+					return
+				else
+					
+					
+				end
+				table.remove(bullets, i)
 			end
 		end
 	end
@@ -1907,13 +2007,16 @@ end
 
 function draw_enemies()
 	for i = 1, #enemies do
+		for _, data in ipairs(enemies[i].data) do
+			draw_hitbox(data)
+		end
 		local enemy = enemies[i]
-		for _, i in ipairs(enemies[i].data) do
-			print(enemy.data[i])
-			print(enemy.data[i].sheet)
-			print(enemy.data[i].x)
-			print(enemy.data[i].y)
-			enemy.data[i].animation:draw(enemy.data[i].sheet, math.floor(enemy.data[i].x), math.floor(enemy.data[i].y))
+		-- draw white shader effect when hit
+		if enemy.flash and enemy.flash > 0 then
+			love.graphics.setShader(shader_flash)
+		end
+		for _, data in ipairs(enemies[i].data) do
+			data.animation:draw(data.sheet, math.floor(data.x), math.floor(data.y))
 		end
 		
 		love.graphics.setShader()
@@ -1929,8 +2032,9 @@ end
 
 function draw_bullets()
 	for i = 1, #bullets do
-		local bullet = bullets[i]
-		bullet.animation:draw(bullet.sheet, math.floor(bullet.x), math.floor(bullet.y))
+		for _, data in ipairs(bullets[i].data) do
+			data.animation:draw(data.sheet, math.floor(data.x), math.floor(data.y))
+		end
 	end
 end
 
