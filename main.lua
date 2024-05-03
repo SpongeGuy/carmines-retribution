@@ -204,7 +204,6 @@ function blink(colors, timer)
 		timer.value = 1
 	end
 	local i = math.floor(timer.value)
-	logstring = logstring .. " c:" .. colors[i]
 	return colors[i]
 end
 
@@ -1046,10 +1045,10 @@ function effect_points(x, y, dx, dy, points, apply, color)
 	myp.lifetime = 3
 	myp.points = points
 	myp.timer = timer_global + myp.lifetime
-	myp.blink_timer = BlinkTimer.new(10, 10)
+	myp.blink_timer = BlinkTimer.new(lifetime, 10)
 	myp.id = "effect_message"
 	myp.dead = false
-	myp.color = {22, 8, 9, 10, 11, 21}
+	myp.color = color or 22
 	function myp:update(dt)
 		self.x = (self.x + self.dx * dt)
 		self.y = (self.y + self.dy * dt)
@@ -1062,7 +1061,7 @@ function effect_points(x, y, dx, dy, points, apply, color)
 		if type(self.color) == "table" then
 			set_draw_color(blink(self.color, self.blink_timer))
 		else
-			set_draw_color(self.color, self.blink_timer)
+			set_draw_color(self.color)
 		end
 		love.graphics.print(self.points, math.floor(self.x), math.floor(self.y))
 	end
@@ -1077,8 +1076,8 @@ function effect_message(x, y, dx, dy, text, lifetime, color)
 	local myp = Particle.new(x, y, dx, dy)
 	myp.lifetime = lifetime
 	myp.text = text
-	myp.timer = timer_global + myp.lifetime
-	myp.blink_timer = 1
+	myp.timer = timer_global
+	myp.blink_timer = BlinkTimer.new(lifetime, 10)
 	myp.id = "effect_message"
 	myp.dead = false
 	myp.color = color or 22
@@ -1086,15 +1085,16 @@ function effect_message(x, y, dx, dy, text, lifetime, color)
 	function myp:update(dt)
 		self.x = (self.x + self.dx * dt)
 		self.y = (self.y + self.dy * dt)
-		if timer_global - self.timer > 0 then
+		if self.lifetime ~= false and timer_global - self.timer > self.lifetime then
 			self.dead = true
 		end
+		self.blink_timer:update(dt)
 	end
 	function myp:draw()
 		if type(self.color) == "table" then
 			set_draw_color(blink(self.color), self.blink_timer)
 		else
-			set_draw_color(self.color, self.blink_timer)
+			set_draw_color(self.color)
 		end
 		love.graphics.print(self.text, math.floor(self.x), math.floor(self.y))
 	end
@@ -1505,7 +1505,6 @@ function love.load()
 
 	-- timers
 	-- - make sure to set timer to nill after using
-	timer_blink = 1
 	timer_global = 1
 	timer_levelselect_delay = nil
 
@@ -1719,7 +1718,6 @@ function reset_game()
 	shot_circ_x = 0
 	shot_circ_y = 0
 
-	timer_blink = 1
 	timer_global = 1
 	timer_enemy_spawner = 1
 	timer_game_speed = 1
@@ -2067,13 +2065,11 @@ end
 
 function love.update(dt)
 	timer_global = timer_global + (1 * dt)
-	timer_blink = timer_blink + (1 * dt) * 10
 	if mode == 'game' then
 		update_game(dt)
 	elseif mode == 'start' then
 		update_start(dt)
 	elseif mode == 'gameover' then
-		timer_blink = timer_blink + (1 * dt) * 15
 		update_game(dt)
 		update_gameover(dt)
 	elseif mode == 'results' then
@@ -2202,6 +2198,14 @@ function draw_game()
 		draw_levelscreen()
 	end
 
+end
+
+function clear_message_effects()
+	for i = 1, #particles do
+		if particles[i].id == "effect_message" then
+			table.remove(particles, i)
+		end
+	end
 end
 
 function draw_levelscreen()
