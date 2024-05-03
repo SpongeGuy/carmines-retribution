@@ -246,7 +246,7 @@ function Background.new(x, y, dx, dy, w, h, sheet, animation)
 	self.w = w
 	self.h = h
 	self.sheet = sheet
-	self.animation = animation
+	self.animation = animation 
 end
 
 function Entity.new(data)
@@ -587,7 +587,7 @@ function create_enemy_rock(posx, posy, deltax, deltay)
 	rock.id = "evil_rock"
 	rock.health = 5
 	rock.points = 100
-	rock.timer = timer_global
+	rock.timer = timer_global + 2
 	rock.friendly = false
 	rock.death_effects = {
 		death_effect_points, 
@@ -606,11 +606,10 @@ function create_enemy_rock(posx, posy, deltax, deltay)
 		for _, obj in ipairs(self.data) do
 			object_update_coordinates(dt, obj)
 		end
-		if player and timer_global - self.timer > 1 then
-			self.timer = timer_global
-			local chance = math.random(1, 100)
-			if chance < 15 then
-				local pdx, pdy = get_vector(self.data[1], player.data[2], 200, true)
+		if player and timer_global - self.timer > 0 then
+			self.timer = timer_global + 2
+			if math.random(1, 100) < 15 then
+				local pdx, pdy = get_vector(self.data[1], get_master_obj(player), 200, true)
 				red_orb_shot(self.data[1].x + self.data[1].hitw / 2, self.data[1].y + self.data[1].hith / 2, pdx, pdy, false)
 			end
 		end
@@ -1704,10 +1703,45 @@ end
 -- if you need to destroy an object, just set it to nil within its collection, garbage collection will take care of it
 function update_enemies(dt)
 	for i = #enemies, 1, -1 do
-		local enemy = enemies[i]
-		enemy:update(dt)
-		if enemy.dead then
+		enemies[i]:update(dt)
+		if enemies[i].dead then
 			table.remove(enemies, i)
+		end
+	end
+end
+
+function update_bullets(dt)
+	for i = #bullets, 1, -1 do
+		bullets[i]:update(dt)
+		if bullets[i].dead then
+			table.remove(bullets, i)
+		end
+	end
+end
+
+function update_explosions(dt)
+	for i = #explosions, 1, -1 do
+		explosions[i]:update(dt)
+		if explosions[i].dead then
+			table.remove(explosions, i)
+		end
+	end
+end
+
+function update_powerups(dt)
+	for i = #powerups, 1, -1 do
+		powerups[i]:update(dt)
+		if powerups[i].dead then
+			table.remove(powerups, i)
+		end
+	end
+end
+
+function update_particles(dt)
+	for i = #particles, 1, -1 do
+		particles[i]:update(dt)
+		if particles[i].dead then
+			table.remove(particles, i)
 		end
 	end
 end
@@ -1717,22 +1751,6 @@ function update_letters(dt)
 		letters[i]:update(dt)
 		if mode ~= 'start' then
 			table.remove(letters, i)
-		end
-	end
-end
-
-function update_bullets(dt)
-	for i = #bullets, 1, -1 do
-		local bullet = bullets[i]
-		bullet:update(dt)
-		local bullet_left_game_area = false
-		local bullet_dead = false
-		for _, data in ipairs(bullets[i].data) do
-			local bullet_left_game_area = (data.x > (window_width / window_scale) + 200 or data.x < -200) or (data.y > (window_height / window_scale) + 200 or data.y < -200)
-			local bullet_dead = bullet.health and bullet.health <= 0
-			if bullet_left_game_area or bullet_dead then
-				table.remove(bullets, i)
-			end
 		end
 	end
 end
@@ -1774,33 +1792,6 @@ function update_background(dt)
 	end
 end
 
-function update_explosions(dt)
-	for i = #explosions, 1, -1 do
-		explosions[i]:update(dt)
-		if explosions[i].dead then
-			table.remove(explosions, i)
-		end
-	end
-end
-
-function update_powerups(dt)
-	for i = #powerups, 1, -1 do
-		powerups[i]:update(dt)
-		if powerups[i].dead then
-			table.remove(powerups, i)
-		end
-	end
-end
-
-function update_particles(dt)
-	for i = #particles, 1, -1 do
-		particles[i]:update(dt)
-		if particles[i].dead then
-			table.remove(particles, i)
-		end
-	end
-end
-
 function update_player(dt)
 	if not player then
 		return
@@ -1825,7 +1816,7 @@ function game_rules(dt)
 	x = game_width + 2
 	y = math.random(2, game_height - 50)
 
-	
+	local spawn_occured = false
 
 	-- enemy spawning difficulty measuring
 	if timer_global - timer_enemy_spawner > game_difficulty_factor then
@@ -1836,14 +1827,21 @@ function game_rules(dt)
 			--spawn_enemy(Enemy_Rock, x, y)
 			local rock = create_enemy_rock(x, y, -100 * game_speed_factor, 0)
 			table.insert(enemies, rock)
+			spawn_occured = true
 		end
 		if math.random(0, 100) < 25 then
 			local gross = create_enemy_gross(x, y, -150 * game_speed_factor, 0)
 			table.insert(enemies, gross)
+			spawn_occured = true
 		end
 		if math.random(0, 100) < 10 * game_difficulty_factor then
 			local drang = create_enemy_drang(x, y, -125 * game_speed_factor, 0)
 			table.insert(enemies, drang)
+			spawn_occured = true
+		end
+		if not spawn_occured then
+			local obj = get_master_obj(player)
+			effect_message(obj.x, obj.y, math.random(-100, 100), math.random(-100, 100), "Cursed...", 3)
 		end
 		timer_enemy_spawner = timer_global
 	end
@@ -1885,7 +1883,6 @@ function update_game(dt)
 	update_enemies(dt)
 	update_player(dt)
 	update_powerups(dt)
-	
 	update_explosions(dt)
 	update_particles(dt)
 	update_hearts(dt)
