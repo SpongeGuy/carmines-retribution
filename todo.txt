@@ -44,3 +44,9 @@ todo
 		probably make a design first dimwit
 	old-school type credits screen displaying enemy and pickup names
 	load and cache images on game start
+
+5/3/2024
+	make length-based levels
+	ui element with player travelling to goal post (like a minimap kinda)
+	`effect_message()` should store its own timer and use that for blinking colors
+	deprecate `timer_blink`

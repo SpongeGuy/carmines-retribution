@@ -195,14 +195,17 @@ end
 
 -- USED TO ALTERNATE COLORS FOR TEXT OR OTHER SHIT
 -- WARNING: THIS DOESN'T START THE BLINK TIMER
-function blink(colors)
-	if not colors then
+function blink(colors, timer)
+	if type(timer) ~= "table" then
+		return 22
+	end
+	if not (colors and timer) then
 		return {255, 255, 255}
 	end
-	if timer_blink > #colors + 1 then
-		timer_blink = 1
+	if timer.value > #colors + 1 then
+		timer.value = 1
 	end
-	local i = math.floor(timer_blink)
+	local i = math.floor(timer.value)
 	return colors[i]
 end
 
@@ -237,6 +240,10 @@ local Pickup = {}
 Pickup.__index = Pickup
 local Terrain = {}
 Terrain.__index = Terrain
+local BlinkTimer = {}
+BlinkTimer.__index = BlinkTimer
+local Timer = {}
+Timer.__index = Timer
 
 function Background.new(x, y, dx, dy, w, h, sheet, animation)
 	self.x = x
@@ -294,6 +301,7 @@ function Pickup.new(x, y, dx, dy, hitw, hith, w, h, sheet, animation)
 end
 
 function Terrain.new(x, y, dx, dy, hitw, hith, w, h, sheet, animation)
+	-- man linked lists would come in real handy right about now
 	local self = setmetatable({}, Terrain)
 	self.x = x
 	self.y = y
@@ -307,6 +315,43 @@ function Terrain.new(x, y, dx, dy, hitw, hith, w, h, sheet, animation)
 	self.h = h
 	self.sheet = sheet
 	self.animation = animation
+
+	return self
+end
+
+function BlinkTimer.new(runtime, multiplier, id)
+	local self = setmetatable({}, Timer)
+	self.value = 1
+	self.multiplier = 1 or multiplier
+	self.runtime = runtime
+	self.id = id or "generic_timer_blink"
+
+	function self:update(dt)
+		logstring = logstring..self.value
+		self.value = (self.value + 1) * self.multiplier * dt
+		if self.value > self.runtime then
+			self = nil
+		end
+	end
+	return self
+end
+
+function Timer.new(runtime, looping, id)
+	local self = setmetatable({}, Timer)
+	self.value = timer_global
+	self.runtime = runtime
+	self.elapsed = 0
+	self.looping = looping
+	self.id = id or "generic_timer"
+
+	function self:update(dt)
+		self.elapsed = timer_global - self.value
+		if self.looping and timer_global - self.value > self.runtime then
+			self.value = timer_global
+		elseif timer_global - self.value > self.runtime then
+			self = nil
+		end
+	end
 
 	return self
 end
@@ -998,22 +1043,30 @@ end
 --  )__)  )__)  )__)  )__)( (__   )(  \__ \
 -- (____)(__)  (__)  (____)\___) (__) (___/
 
-function effect_points(x, y, dx, dy, points, apply)
+function effect_points(x, y, dx, dy, points, apply, color)
 	local myp = Particle.new(x, y, dx, dy)
 	myp.lifetime = 3
 	myp.points = points
 	myp.timer = timer_global + myp.lifetime
+	myp.blink_timer = BlinkTimer.new(16, 1000)
 	myp.id = "effect_message"
 	myp.dead = false
+	myp.color = color or 2
 	function myp:update(dt)
 		self.x = (self.x + self.dx * dt)
 		self.y = (self.y + self.dy * dt)
 		if timer_global - self.timer > 0 then
 			self.dead = true
 		end
+		self.blink_timer:update(dt)
 	end
 	function myp:draw(dt)
-		set_draw_color(blink({21, 22, 23, 20, 10, 11, 22}))
+		if type(self.color) == "table" then
+			print(tostring(self.blink_timer.value))
+			set_draw_color(blink(self.color, self.blink_timer))
+		else
+			set_draw_color(self.color, self.blink_timer.value)
+		end
 		love.graphics.print(self.points, math.floor(self.x), math.floor(self.y))
 	end
 	table.insert(particles, myp)
@@ -1023,13 +1076,15 @@ function effect_points(x, y, dx, dy, points, apply)
 	score = score + myp.points
 end
 
-function effect_message(x, y, dx, dy, text, lifetime)
+function effect_message(x, y, dx, dy, text, lifetime, color)
 	local myp = Particle.new(x, y, dx, dy)
 	myp.lifetime = lifetime
 	myp.text = text
 	myp.timer = timer_global + myp.lifetime
+	myp.blink_timer = 1
 	myp.id = "effect_message"
 	myp.dead = false
+	myp.color = color or 22
 
 	function myp:update(dt)
 		self.x = (self.x + self.dx * dt)
@@ -1039,7 +1094,11 @@ function effect_message(x, y, dx, dy, text, lifetime)
 		end
 	end
 	function myp:draw()
-		set_draw_color(blink({21, 22, 23, 20, 10, 11, 22}))
+		if type(self.color) == "table" then
+			set_draw_color(blink(self.color), self.blink_timer)
+		else
+			set_draw_color(self.color, self.blink_timer)
+		end
 		love.graphics.print(self.text, math.floor(self.x), math.floor(self.y))
 	end
 	table.insert(particles, myp)
@@ -1368,13 +1427,13 @@ function death_effect_points(entity, only_on_master, apply)
 		local pointX = obj.x + obj.hitw/2
 		local pointY = obj.y + obj.hith/2
 		local points = entity.points
-		effect_points(pointX, pointY, obj.dx / 2.5 + math.random(-50, 50), obj.dy / 5 + math.random(-50, 50), points, apply)
+		effect_points(pointX, pointY, obj.dx / 2.5 + math.random(-50, 50), obj.dy / 5 + math.random(-50, 50), points, apply, {21, 22, 23, 20, 10, 11, 22})
 	else
 		for _, obj in ipairs(entity.data) do
 			local pointX = obj.x + obj.hitw/2
 			local pointY = obj.y + obj.hith/2
 			local points = entity.points
-			effect_points(pointX, pointY, obj.dx / 2.5 + math.random(-50, 50), obj.dy / 5 + math.random(-50, 50), points, apply)
+			effect_points(pointX, pointY, obj.dx / 2.5 + math.random(-50, 50), obj.dy / 5 + math.random(-50, 50), points, apply, {21, 22, 23, 20, 10, 11, 22})
 		end
 	end
 end
@@ -2149,14 +2208,14 @@ function draw_game()
 end
 
 function draw_levelscreen()
-	set_draw_color(blink({21, 22, 23, 24}))
+	set_draw_color(blink({21, 22, 23, 24}, timer_blink))
 	love.graphics.draw(ui_label_level_num, ui_label_level_num_x, ui_label_level_num_y)
 	love.graphics.draw(ui_label_level_name, ui_label_level_name_x, ui_label_level_name_y)
 	set_draw_color(22)
 end
 
 function draw_gameover()
-	set_draw_color(blink({9, 6, 28}))
+	set_draw_color(blink({9, 6, 28}, timer_blink))
 	love.graphics.draw(ui_label_deathmessage, ui_label_deathmessage_x, ui_label_deathmessage_y)
 	love.graphics.draw(ui_label_angry, ui_label_angry_x, ui_label_angry_y)
 	set_draw_color(22)
@@ -2169,7 +2228,7 @@ function center_text(text)
 end
 
 function draw_start()
-	set_draw_color(blink({21, 22, 22, 22, 23, 24}))
+	set_draw_color(blink({21, 22, 22, 22, 23, 24}, timer_blink))
 	local text1 = "CARMINE'S RETRIBUTION"
 	local text2 = "PRESS ANY KEY TO START"
 	love.graphics.print(text1, center_text(text1), (game_height / 2) - 60)
