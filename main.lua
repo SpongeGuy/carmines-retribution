@@ -196,9 +196,7 @@ end
 -- USED TO ALTERNATE COLORS FOR TEXT OR OTHER SHIT
 -- WARNING: THIS DOESN'T START THE BLINK TIMER
 function blink(colors, timer)
-	if type(timer) ~= "table" then
-		return 22
-	end
+	if type(timer) ~= "table" then return 22 end
 	if not (colors and timer) then
 		return {255, 255, 255}
 	end
@@ -206,6 +204,7 @@ function blink(colors, timer)
 		timer.value = 1
 	end
 	local i = math.floor(timer.value)
+	logstring = logstring .. " c:" .. colors[i]
 	return colors[i]
 end
 
@@ -322,13 +321,12 @@ end
 function BlinkTimer.new(runtime, multiplier, id)
 	local self = setmetatable({}, Timer)
 	self.value = 1
-	self.multiplier = 1 or multiplier
+	self.multiplier = multiplier or 1
 	self.runtime = runtime
 	self.id = id or "generic_timer_blink"
 
 	function self:update(dt)
-		logstring = logstring..self.value
-		self.value = (self.value + 1) * self.multiplier * dt
+		self.value = self.value + ((1 * self.multiplier) * dt)
 		if self.value > self.runtime then
 			self = nil
 		end
@@ -1048,10 +1046,10 @@ function effect_points(x, y, dx, dy, points, apply, color)
 	myp.lifetime = 3
 	myp.points = points
 	myp.timer = timer_global + myp.lifetime
-	myp.blink_timer = BlinkTimer.new(16, 1000)
+	myp.blink_timer = BlinkTimer.new(10, 10)
 	myp.id = "effect_message"
 	myp.dead = false
-	myp.color = color or 2
+	myp.color = {22, 8, 9, 10, 11, 21}
 	function myp:update(dt)
 		self.x = (self.x + self.dx * dt)
 		self.y = (self.y + self.dy * dt)
@@ -1062,10 +1060,9 @@ function effect_points(x, y, dx, dy, points, apply, color)
 	end
 	function myp:draw(dt)
 		if type(self.color) == "table" then
-			print(tostring(self.blink_timer.value))
 			set_draw_color(blink(self.color, self.blink_timer))
 		else
-			set_draw_color(self.color, self.blink_timer.value)
+			set_draw_color(self.color, self.blink_timer)
 		end
 		love.graphics.print(self.points, math.floor(self.x), math.floor(self.y))
 	end
