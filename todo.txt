@@ -50,3 +50,5 @@ todo
 	ui element with player travelling to goal post (like a minimap kinda)
 	`effect_message()` should store its own timer and use that for blinking colors
 	deprecate `timer_blink`
+
+	

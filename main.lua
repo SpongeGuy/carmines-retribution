@@ -193,6 +193,17 @@ function get_master_obj(entity)
 	end
 end
 
+function clear_all()
+	bullets = {}
+	background = {}
+	enemies = {}
+	explosions = {}
+	particles = {}
+	powerups = {}
+	ui = {}
+	player = nil
+end
+
 -- USED TO ALTERNATE COLORS FOR TEXT OR OTHER SHIT
 -- WARNING: THIS DOESN'T START THE BLINK TIMER
 function blink(colors, timer)
@@ -922,9 +933,12 @@ function create_powerup_lilgab(posx, posy, deltax, deltay)
 
 	function gab:effect()
 		local obj = get_master_obj(self)
-		effect_shockwave(obj.x + (obj.hith / 2), obj.y + obj.hitw / 2, obj.dx / 2, obj.dy / 2)
-		effect_points(obj.x + obj.hith / 2, obj.y + obj.hitw / 2, obj.dx / 2, obj.dy / 2, self.points)
-		effect_message(obj.x + obj.hith / 2, obj.y + obj.hitw / 2, obj.dx / 2 + math.random(-50, 50), obj.dy / 2 + math.random(-50, 50), "Nice!", 3)
+		local p1 = create_particle_shockwave(obj.x + (obj.hith / 2), obj.y + obj.hitw / 2, obj.dx / 2, obj.dy / 2)
+		local p2 = create_particle_points(obj.x + obj.hith / 2, obj.y + obj.hitw / 2, obj.dx / 2, obj.dy / 2, self.points)
+		local p3 = create_particle_message(obj.x + obj.hith / 2, obj.y + obj.hitw / 2, obj.dx / 2 + math.random(-50, 50), obj.dy / 2 + math.random(-50, 50), "Nice!", 3)
+		table.insert(explosions, p1)
+		table.insert(particles, p2)
+		table.insert(particles, p3)
 		self.sound:play()
 	end
 
@@ -994,12 +1008,14 @@ function create_powerup_cheese(posx, posy, deltax, deltay)
 	function cheese:effect(dt)
 		if player.health < player.max_health then
 			player.health = player.health + 1
-			effect_shockwave(ui_hearts_x + (7 * (player.health - 1)), ui_hearts_y + 7, 0, 0, 20, 400)
+			create_particle_shockwave(ui_hearts_x + (7 * (player.health - 1)), ui_hearts_y + 7, 0, 0, 20, 400)
 		end
-		effect_message(self.data[1].x + self.data[1].hith / 2, self.data[1].y + self.data[1].hitw / 2, self.data[1].dx / 2 + math.random(-50, 50), self.data[1].dy / 2 + math.random(-50, 50), "Health up!", 3)
-		effect_shockwave(self.data[1].x + (self.data[1].hith / 2), self.data[1].y + self.data[1].hitw / 2, self.data[1].dx / 2, self.data[1].dy / 2)
-		effect_points(self.data[1].x + self.data[1].hith / 2, self.data[1].y + self.data[1].hitw / 2, self.data[1].dx / 2, self.data[1].dy / 2, self.points)
-		
+		local p1 = create_particle_message(self.data[1].x + self.data[1].hith / 2, self.data[1].y + self.data[1].hitw / 2, self.data[1].dx / 2 + math.random(-50, 50), self.data[1].dy / 2 + math.random(-50, 50), "Health up!", 3)
+		local p2 = create_particle_shockwave(self.data[1].x + (self.data[1].hith / 2), self.data[1].y + self.data[1].hitw / 2, self.data[1].dx / 2, self.data[1].dy / 2)
+		local p3 = create_particle_points(self.data[1].x + self.data[1].hith / 2, self.data[1].y + self.data[1].hitw / 2, self.data[1].dx / 2, self.data[1].dy / 2, self.points)
+		table.insert(explosions, p2)
+		table.insert(particles, p1)
+		table.insert(particles, p3)
 		self.sound:play()
 	end
 
@@ -1040,22 +1056,24 @@ end
 --  )__)  )__)  )__)  )__)( (__   )(  \__ \
 -- (____)(__)  (__)  (____)\___) (__) (___/
 
-function effect_points(x, y, dx, dy, points, apply, color)
+function create_particle_points(x, y, dx, dy, points, apply, color)
 	local myp = Particle.new(x, y, dx, dy)
 	myp.lifetime = 3
 	myp.points = points
 	myp.timer = timer_global + myp.lifetime
-	myp.blink_timer = BlinkTimer.new(lifetime, 10)
+	myp.blink_timer = BlinkTimer.new(myp.lifetime, 10)
 	myp.id = "effect_message"
 	myp.dead = false
 	myp.color = color or 22
 	function myp:update(dt)
 		self.x = (self.x + self.dx * dt)
 		self.y = (self.y + self.dy * dt)
+		self.blink_timer:update(dt)
 		if timer_global - self.timer > 0 then
 			self.dead = true
+			self.blink_timer = nil
 		end
-		self.blink_timer:update(dt)
+		
 	end
 	function myp:draw(dt)
 		if type(self.color) == "table" then
@@ -1065,19 +1083,21 @@ function effect_points(x, y, dx, dy, points, apply, color)
 		end
 		love.graphics.print(self.points, math.floor(self.x), math.floor(self.y))
 	end
-	table.insert(particles, myp)
 	if apply == false then
-		return
+		myp.points = 0
 	end
 	score = score + myp.points
+	return myp
+	
+	
 end
 
-function effect_message(x, y, dx, dy, text, lifetime, color)
+function create_particle_message(x, y, dx, dy, text, lifetime, color)
 	local myp = Particle.new(x, y, dx, dy)
 	myp.lifetime = lifetime
 	myp.text = text
 	myp.timer = timer_global
-	myp.blink_timer = BlinkTimer.new(lifetime, 10)
+	myp.blink_timer = BlinkTimer.new(myp.lifetime, 10)
 	myp.id = "effect_message"
 	myp.dead = false
 	myp.color = color or 22
@@ -1085,10 +1105,16 @@ function effect_message(x, y, dx, dy, text, lifetime, color)
 	function myp:update(dt)
 		self.x = (self.x + self.dx * dt)
 		self.y = (self.y + self.dy * dt)
+		self.blink_timer:update(dt)
 		if self.lifetime ~= false and timer_global - self.timer > self.lifetime then
 			self.dead = true
+			self.blink_timer = nil
 		end
-		self.blink_timer:update(dt)
+		if self.x > game_width + 20 or self.x < -20 or self.y > game_height or self.y < -20 then
+			self.dead = true
+			self.blink_timer = nil
+		end
+		
 	end
 	function myp:draw()
 		if type(self.color) == "table" then
@@ -1098,20 +1124,20 @@ function effect_message(x, y, dx, dy, text, lifetime, color)
 		end
 		love.graphics.print(self.text, math.floor(self.x), math.floor(self.y))
 	end
-	table.insert(particles, myp)
+	return myp
 end
 
-function effect_shockwave(x, y, dx, dy, r, dr, da)
+function create_particle_shockwave(x, y, dx, dy, r, dr, da)
 	local myp = Particle.new(x, y, dx, dy)
 	myp.seed = math.random() * 0.25
 	myp.lifetime = 1
 	myp.id = "effect_shockwave"
 	myp.r = r or 1
 	myp.alpha = 1
-	myp.dr = dr or 250--* math.random() * 1.5
+	myp.dr = dr or 300--* math.random() * 1.5
 	myp.timer = timer_global + myp.lifetime
 	myp.dead = false
-	local da = da or 1
+	local da = da or 2
 	function myp:update(dt)
 		self.x = (self.x + self.dx * dt)
 		self.y = (self.y + self.dy * dt)
@@ -1132,12 +1158,10 @@ function effect_shockwave(x, y, dx, dy, r, dr, da)
 		set_draw_color(22)
 	end
 	
-	for i = 1, 3 do
-		table.insert(explosions, myp)
-	end
+	return myp
 end
 
-function effect_break(x, y, dx, dy)
+function create_particle_break(x, y, dx, dy)
 	local myp = Particle.new(x, y, dx, dy)
 	myp.seed = math.random() * 0.25
 	myp.lifetime = 1
@@ -1162,10 +1186,10 @@ function effect_break(x, y, dx, dy)
 		set_draw_color(22)
 		love.graphics.circle('fill', math.floor(self.x), math.floor(self.y), self.r)
 	end
-	table.insert(explosions, myp)
+	return myp
 end
 
-function effect_burst(x, y, dx, dy, r, dr)
+function create_particle_burst(x, y, dx, dy, r, dr)
 	local myp = Particle.new(x, y, dx, dy)
 	myp.lifetime = 1
 	myp.id = "effect_burst"
@@ -1197,16 +1221,16 @@ function effect_burst(x, y, dx, dy, r, dr)
 		end
 		love.graphics.circle("fill", math.floor(self.x), math.floor(self.y), math.floor(self.r))
 	end
-	table.insert(explosions, myp)
+	return myp
 end
 
 -- MAKES AN EXPLOSION AT A COORDINATE
-function effect_explode(x, y, dx, dy)
+function create_particle_explosion(x, y, dx, dy)
 	local myp = Particle.new(x, y, dx, dy)
 	myp.lifetime = 2
-	myp.seed = math.random() * 0.25
+	myp.seed = math.random() * 0.1
 	myp.id = "effect_explosion"
-	myp.r = math.floor(math.random(4, 8))
+	myp.r = math.floor(math.random(5, 10))
 	myp.timer = timer_global + myp.lifetime + myp.seed
 	myp.dead = false
 	function myp:update(dt)
@@ -1214,7 +1238,7 @@ function effect_explode(x, y, dx, dy)
 		self.y = (self.y + self.dy * dt)
 		local decrease_rate = 2.5
 		local decrease_per_frame = decrease_rate / love.timer.getFPS()
-		self.r = self.r - 4 * dt
+		self.r = self.r - 5 * dt
 		if self.r < 0 then
 			self.r = 0
 		end
@@ -1244,7 +1268,7 @@ function effect_explode(x, y, dx, dy)
 		love.graphics.circle('fill', math.floor(self.x), math.floor(self.y), self.r)
 	end
 
-	table.insert(particles, myp)
+	return myp
 end
 
 function effect_starfield(x, y, w, h)
@@ -1277,7 +1301,8 @@ function death_effect_explode(entity, only_on_master)
 		local pointY = obj.y + obj.hith/2
 
 		for p = 1, 50 do
-			effect_explode(pointX, pointY, math.random(-150, 150) + obj.dx, math.random(-150, 150) + obj.dy)
+			local particle = create_particle_explosion(pointX, pointY, math.random(-125, 125) + obj.dx, math.random(-125, 125) + obj.dy)
+			table.insert(particles, particle)
 		end
 	else
 		for _, obj in ipairs(entity.data) do
@@ -1285,7 +1310,8 @@ function death_effect_explode(entity, only_on_master)
 			local pointY = obj.y + obj.hith/2
 
 			for p  = 1, 50 do
-				effect_explode(pointX, pointY, math.random(-150, 150) + obj.dx, math.random(-150, 150) + obj.dy)
+				local particle = create_particle_explosion(pointX, pointY, math.random(-125, 125) + obj.dx, math.random(-125, 125) + obj.dy)
+				table.insert(particles, particle)
 			end
 		end
 	end
@@ -1298,13 +1324,19 @@ function death_effect_shockwave(entity, only_on_master)
 		local pointX = obj.x + obj.hitw/2
 		local pointY = obj.y + obj.hith/2
 
-		effect_shockwave(pointX, pointY, obj.dx / 4, obj.dy / 4)
+		for i = 1, 3 do
+			local explosion = create_particle_shockwave(pointX, pointY, obj.dx / 4, obj.dy / 4)
+			table.insert(explosions, explosion)
+		end
 	else
 		for _, obj in ipairs(entity.data) do
 			local pointX = obj.x + obj.hitw/2
 			local pointY = obj.y + obj.hith/2
 
-			effect_shockwave(pointX, pointY, obj.dx / 4, obj.dy / 4)
+			for i = 1, 3 do
+				local explosion = create_particle_shockwave(pointX, pointY, obj.dx / 4, obj.dy / 4)
+				table.insert(explosions, explosion)
+			end
 		end
 	end
 	
@@ -1316,13 +1348,15 @@ function death_effect_burst(entity, only_on_master)
 		local pointX = obj.x + obj.hitw/2
 		local pointY = obj.y + obj.hith/2
 
-		effect_burst(pointX, pointY, obj.dx * 0.75, obj.dy * 0.75, 50)
+		local explosion = create_particle_burst(pointX, pointY, obj.dx * 0.75, obj.dy * 0.75, 50)
+		table.insert(explosions, explosion)
 	else
 		for _, obj in ipairs(entity.data) do
 			local pointX = obj.x + obj.hitw/2
 			local pointY = obj.y + obj.hith/2
 
-			effect_burst(pointX, pointY, obj.dx * 0.75, obj.dy * 0.75, 50)
+			local explosion = create_particle_burst(pointX, pointY, obj.dx * 0.75, obj.dy * 0.75, 50)
+			table.insert(explosions, explosion)
 		end
 	end
 	
@@ -1335,7 +1369,8 @@ function death_effect_break(entity, only_on_master)
 		local pointY = obj.y + obj.hith/2
 
 		for i = 1, 50 do
-			effect_break(pointX, pointY, obj.dx + math.random(-300, 300), obj.dy + math.random(-300, 300))
+			local particle = create_particle_break(pointX, pointY, obj.dx + math.random(-300, 300), obj.dy + math.random(-300, 300))
+			table.insert(particles, particle)
 		end
 	else
 		for _, obj in ipairs(entity.data) do
@@ -1343,7 +1378,8 @@ function death_effect_break(entity, only_on_master)
 			local pointY = obj.y + obj.hith/2
 
 			for i = 1, 50 do
-				effect_break(pointX, pointY, obj.dx + math.random(-300, 300), obj.dy + math.random(-300, 300))
+				local particle = create_particle_break(pointX, pointY, obj.dx + math.random(-300, 300), obj.dy + math.random(-300, 300))
+				table.insert(particles, particle)
 			end
 		end
 	end
@@ -1424,13 +1460,15 @@ function death_effect_points(entity, only_on_master, apply)
 		local pointX = obj.x + obj.hitw/2
 		local pointY = obj.y + obj.hith/2
 		local points = entity.points
-		effect_points(pointX, pointY, obj.dx / 2.5 + math.random(-50, 50), obj.dy / 5 + math.random(-50, 50), points, apply, {21, 22, 23, 20, 10, 11, 22})
+		local particle = create_particle_points(pointX, pointY, obj.dx / 2.5 + math.random(-50, 50), obj.dy / 5 + math.random(-50, 50), points, apply, {21, 22, 23, 20, 10, 11, 22})
+		table.insert(particles, particle)
 	else
 		for _, obj in ipairs(entity.data) do
 			local pointX = obj.x + obj.hitw/2
 			local pointY = obj.y + obj.hith/2
 			local points = entity.points
-			effect_points(pointX, pointY, obj.dx / 2.5 + math.random(-50, 50), obj.dy / 5 + math.random(-50, 50), points, apply, {21, 22, 23, 20, 10, 11, 22})
+			local particle = create_particle_points(pointX, pointY, obj.dx / 2.5 + math.random(-50, 50), obj.dy / 5 + math.random(-50, 50), points, apply, {21, 22, 23, 20, 10, 11, 22})
+			table.insert(particles, particle)
 		end
 	end
 end
@@ -1501,7 +1539,7 @@ function love.load()
 	love.window.setTitle("CARMINE'S RETRIBUTION")
 	love.window.setIcon(love.image.newImageData("sprites/player/carmine/carmine_icon.png"))
 	load_startscreen()
-	mode = 'start'
+	switch_mode('start')
 
 	-- timers
 	-- - make sure to set timer to nill after using
@@ -1646,8 +1684,6 @@ function load_ui()
 	ui_label_name_x = 4
 	ui_label_name_y = 4
 
-	
-
 	-- life
 	ui_label_life = love.graphics.newText(font_gamer_med, "-LIFE-")
 	ui_label_life_x = ui_label_name:getWidth() + 12
@@ -1693,13 +1729,7 @@ end
 
 function reset_game()
 	-- init variables
-	bullets = {}
-	background = {}
-	enemies = {}
-	explosions = {}
-	particles = {}
-	powerups = {}
-	ui = {}
+	clear_all()
 
 	-- ui
 	score = 0
@@ -1895,7 +1925,7 @@ function game_rules(dt)
 		end
 		if not spawn_occured then
 			local obj = get_master_obj(player)
-			effect_message(obj.x, obj.y, math.random(-100, 100), math.random(-100, 100), "Cursed...", 3)
+			create_particle_message(obj.x, obj.y, math.random(-100, 100), math.random(-100, 100), "Cursed...", 3)
 		end
 		timer_enemy_spawner = timer_global
 	end
@@ -1917,12 +1947,12 @@ function update_game(dt)
 		timer_levelselect_delay = nil
 	end
 
-	if player and player.health <= 0 then
-		mode = 'gameover'
+	if not player or (player and player.health <= 0) then
+		switch_mode('gameover')
 	end
 
 	if love.keyboard.isDown('r') then
-		mode = 'start'
+		clear_all()
 	end
 	if timer_global > 32000 then
 		timer_global = 1
@@ -1956,9 +1986,11 @@ function update_game(dt)
 
 						local sound = love.audio.newSource("sounds/deep_hit.wav", 'static')
 						sound:play()
-						effect_shockwave(b_obj.x + b_obj.hitw/2, b_obj.y + b_obj.hith/2, b_obj.dx * 0.05, b_obj.dy * 0.05, 1, 50)
+						local p1 = create_particle_shockwave(b_obj.x + b_obj.hitw/2, b_obj.y + b_obj.hith/2, b_obj.dx * 0.05, b_obj.dy * 0.05, 1, 50, 1)
+						table.insert(explosions, p1)
 						for index = 1, 3 do
-							effect_break(e_obj.x + e_obj.hitw / 2, e_obj.y + e_obj.hith / 2)
+							local p2 = create_particle_break(e_obj.x + e_obj.hitw / 2, e_obj.y + e_obj.hith / 2)
+							table.insert(particles, p2)
 						end
 						enemy.flash = 0.05
 					end
@@ -2002,7 +2034,8 @@ function update_game(dt)
 		for _, obj in ipairs(bullets[i].data) do
 			if not bullets[i].friendly and get_collision(get_master_obj(player), obj) then
 				if not player.timer_invulnerable then
-					effect_burst(obj.x, obj.y, obj.dx, obj.dy)
+					local p1 = create_particle_burst(obj.x, obj.y, obj.dx, obj.dy)
+					table.insert(explosions, p1)
 					sound_slash:play()
 					player.flash = 0.1
 					player.health = player.health - 1
@@ -2039,9 +2072,8 @@ function update_start(dt)
 	-- update function for start screen
 	update_letters(dt)
 	if love.keyboard.isDown('space') and not key_space_pressed then
-		mode = 'game'
+		switch_mode('game')
 		key_space_pressed = true
-		reset_game()
 		if not timer_levelselect_delay then
 			timer_levelselect_delay = timer_global
 		end
@@ -2051,35 +2083,21 @@ end
 function update_gameover(dt)
 	-- update function for gameover screen
 	if love.keyboard.isDown('space') and not key_space_pressed then
-		mode = 'start'
+		switch_mode('start')
 		key_space_pressed = true
 	end
 end
 
 function update_credits(dt)
 	if love.keyboard.isDown('space') and not key_space_pressed then
-		mode = 'start'
+		switch_mode('start')
 		key_space_pressed = true
 	end
 end
 
-function love.update(dt)
-	timer_global = timer_global + (1 * dt)
-	if mode == 'game' then
-		update_game(dt)
-	elseif mode == 'start' then
-		update_start(dt)
-	elseif mode == 'gameover' then
-		update_game(dt)
-		update_gameover(dt)
-	elseif mode == 'results' then
+-- startscreen
+function load_start()
 
-	elseif mode == 'credits' then
-		update_credits(dt)
-		
-	elseif mode == 'levelscreen' then
-		update_levelscreen(dt)
-	end
 end
 
 
@@ -2238,7 +2256,42 @@ end
 
 
 
+function switch_mode(m)
+	if m == 'game' then
+		clear_all()
+		reset_game()
+	elseif m == 'start' then
+		clear_all()
+	elseif m == 'gameover' then
 
+	elseif m == 'results' then
+
+	elseif m == 'credits' then
+
+	elseif m == 'levelscreen' then
+
+	end
+	mode = m
+end
+
+function love.update(dt)
+	timer_global = timer_global + (1 * dt)
+	if mode == 'game' then
+		update_game(dt)
+	elseif mode == 'start' then
+		update_start(dt)
+	elseif mode == 'gameover' then
+		update_game(dt)
+		update_gameover(dt)
+	elseif mode == 'results' then
+
+	elseif mode == 'credits' then
+		update_credits(dt)
+		
+	elseif mode == 'levelscreen' then
+		update_levelscreen(dt)
+	end
+end
 
 function love.draw()
 	push:start()
@@ -2261,11 +2314,6 @@ function love.draw()
 		log1:draw(0, 0)
 	push:finish()
 end
-
-
-
-
-
 
 function love.keyreleased(key)
 	if key == 'space' then
