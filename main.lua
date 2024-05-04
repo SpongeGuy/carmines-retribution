@@ -512,7 +512,7 @@ function create_player_carmine(posx, posy)
 	player.health = 4
 	player.attack_speed = 1
 	player.attack_type = "double_water_shot"
-	player.secondshot = true
+	player.secondshot = false
 	player.invulnerable_delay = 2
 
 	player.timer_shot = nil
@@ -567,6 +567,7 @@ function create_player_carmine(posx, posy)
 	end
 
 	function player:shoot(dt)
+		-- eventually incorporate recursion into this
 		if self.health <= 0 then
 			return
 		end
@@ -589,7 +590,7 @@ function create_player_carmine(posx, posy)
 			if self.attack_type == "single_water_shot" then
 				single_water_shot(math.floor(data[2].x + 10), math.floor(data[2].y), 550, 0, true)
 			elseif self.attack_type == "double_water_shot" then
-				triple_water_shot(math.floor(data[2].x + 10), math.floor(data[2].y), 550, 0, true)
+				quintuple_water_shot(math.floor(data[2].x + 10), math.floor(data[2].y), 550, 0, true)
 			end
 			if self.secondshot then
 				self.timer_secondshot = timer_global
@@ -1060,16 +1061,17 @@ function create_particle_points(x, y, dx, dy, points, apply, color)
 	local myp = Particle.new(x, y, dx, dy)
 	myp.lifetime = 3
 	myp.points = points
-	myp.timer = timer_global + myp.lifetime
+	myp.timer = timer_global
 	myp.blink_timer = BlinkTimer.new(myp.lifetime, 10)
 	myp.id = "effect_message"
 	myp.dead = false
 	myp.color = color or 22
+	myp.seed = math.random() * 0.5
 	function myp:update(dt)
 		self.x = (self.x + self.dx * dt)
 		self.y = (self.y + self.dy * dt)
 		self.blink_timer:update(dt)
-		if timer_global - self.timer > 0 then
+		if timer_global - self.timer > self.lifetime + self.seed then
 			self.dead = true
 			self.blink_timer = nil
 		end
@@ -1099,6 +1101,7 @@ function create_particle_message(x, y, dx, dy, text, lifetime, color)
 	myp.timer = timer_global
 	myp.blink_timer = BlinkTimer.new(myp.lifetime, 10)
 	myp.id = "effect_message"
+	myp.seed = math.random() * 0.5
 	myp.dead = false
 	myp.color = color or 22
 
@@ -1106,7 +1109,7 @@ function create_particle_message(x, y, dx, dy, text, lifetime, color)
 		self.x = (self.x + self.dx * dt)
 		self.y = (self.y + self.dy * dt)
 		self.blink_timer:update(dt)
-		if self.lifetime ~= false and timer_global - self.timer > self.lifetime then
+		if self.lifetime ~= false and timer_global - self.timer > self.lifetime + self.seed then
 			self.dead = true
 			self.blink_timer = nil
 		end
@@ -1514,6 +1517,24 @@ function triple_water_shot(x, y, dx, dy, friendly)
 	table.insert(bullets, water1)
 	table.insert(bullets, water2)
 	table.insert(bullets, water3)
+end
+
+function quintuple_water_shot(x, y, dx, dy, friendly)
+	local mod = 0.25
+	local w1 = create_projectile_water_drop(x - 8, y - 40, dx, dy, friendly)
+	local w2 = create_projectile_water_drop(x - 2, y - 20, dx , dy, friendly)
+	local w3 = create_projectile_water_drop(x, y, dx, dy, friendly)
+	local w4 = create_projectile_water_drop(x - 2, y + 20, dx, dy, friendly)
+	local w5 = create_projectile_water_drop(x - 8, y + 40, dx, dy, friendly)
+	local sound = love.audio.newSource("sounds/ball_shot.wav", 'static')
+	sound:play()
+	
+	table.insert(bullets, w1)
+	table.insert(bullets, w2)
+	
+	table.insert(bullets, w4)
+	table.insert(bullets, w5)
+	table.insert(bullets, w3)
 end
 
 function red_orb_shot(x, y, dx, dy, friendly)

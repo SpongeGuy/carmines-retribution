@@ -51,4 +51,5 @@ todo
 	`effect_message()` should store its own timer and use that for blinking colors
 	deprecate `timer_blink`
 
-	
+	eventually, i want to factor in bullet health, which would allow piercing through enemies. the problem is that if I do this now, the bullet would simply do 2 damage and then disappear on the same enemy.
+		I would have to make a collision id system that would create a uuid on a collision. for every collision that occurs, i would check if a collision has been made, and if the collision id matches from both parties, then don't count the collision.
