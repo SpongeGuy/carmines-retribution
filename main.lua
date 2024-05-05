@@ -202,6 +202,9 @@ function clear_all()
 	powerups = {}
 	ui = {}
 	player = nil
+
+	-- menu specific
+	start_assets = {}
 end
 
 -- USED TO ALTERNATE COLORS FOR TEXT OR OTHER SHIT
@@ -627,6 +630,8 @@ function create_enemy_rock(posx, posy, deltax, deltay)
 			y = posy,
 			dx = deltax,
 			dy = deltay,
+			w = 43,
+			h = 30,
 			hitx = posx,
 			hity = posy,
 			hitw = 43,
@@ -697,6 +702,8 @@ function create_enemy_gross(posx, posy, deltax, deltay)
 			y = posy,
 			dx = deltax,
 			dy = deltay,
+			w = 23,
+			h = 35,
 			hitx = posx,
 			hity = posy,
 			hitw = 23,
@@ -775,6 +782,8 @@ function create_enemy_drang(posx, posy, deltax, deltay)
 			y = posy,
 			dx = deltax,
 			dy = deltay,
+			w = 36,
+			h = 40,
 			hitx = posx,
 			hity = posy,
 			hitw = 36,
@@ -916,6 +925,8 @@ function create_powerup_lilgab(posx, posy, deltax, deltay)
 			y = posy,
 			dx = deltax,
 			dy = deltay,
+			w = 17,
+			h = 15,
 			hitx = posx,
 			hity = posy,
 			hitw = 17,
@@ -936,7 +947,7 @@ function create_powerup_lilgab(posx, posy, deltax, deltay)
 		local obj = get_master_obj(self)
 		local p1 = create_particle_shockwave(obj.x + (obj.hith / 2), obj.y + obj.hitw / 2, obj.dx / 2, obj.dy / 2)
 		local p2 = create_particle_points(obj.x + obj.hith / 2, obj.y + obj.hitw / 2, obj.dx / 2, obj.dy / 2, self.points)
-		local p3 = create_particle_message(obj.x + obj.hith / 2, obj.y + obj.hitw / 2, obj.dx / 2 + math.random(-50, 50), obj.dy / 2 + math.random(-50, 50), "Nice!", 3)
+		local p3 = create_particle_message(obj.x + obj.hith / 2, obj.y + obj.hitw / 2, obj.dx / 2 + math.random(-50, 50), obj.dy / 2 + math.random(-50, 50), "Nice!", 3, {9, 9, 22, 21, 22})
 		table.insert(explosions, p1)
 		table.insert(particles, p2)
 		table.insert(particles, p3)
@@ -975,6 +986,8 @@ function create_powerup_cheese(posx, posy, deltax, deltay)
 			y = posy,
 			dx = deltax,
 			dy = deltay,
+			w = 26,
+			h = 26,
 			hitx = posx,
 			hity = posy,
 			hitw = 26,
@@ -1057,6 +1070,70 @@ end
 --  )__)  )__)  )__)  )__)( (__   )(  \__ \
 -- (____)(__)  (__)  (____)\___) (__) (___/
 
+function get_obj_offset(thing, offsetx, offsety)
+	local x, y = 0
+	if thing.w then
+		if offsetx < 0 then
+			x = thing.x - offsetx
+		elseif offsetx > 0 then
+			x = thing.x + thing.w + offsetx
+		else
+			x = thing.x
+		end
+		if offsety < 0 then
+			y = thing.y - offsety
+		elseif offsety > 0 then
+			y = thing.y + thing.h + offsety
+		else
+			y = thing.y
+		end
+	elseif thing.obj:getWidth() then
+		if offsetx < 0 then
+			x = thing.x - offsetx
+		elseif offsetx > 0 then
+			x = thing.x + thing.obj:getWidth() + offsetx
+		else
+			x = thing.x
+		end
+		if offsety < 0 then
+			y = thing.y - offsety
+		elseif offsety > 0 then
+			y = thing.y + thing.obj:getHeight() + offsety
+		else
+			y = thing.y
+		end
+	end
+
+	return x, y
+end
+
+function create_text(x, y, dx, dy, msg, color, centered)
+	local text = Particle.new(x, y, dx, dy)
+	text.obj = love.graphics.newText(font_gamer_med, msg)
+	if centered then
+		text.x = center_text(msg)
+	end
+	text.dead = false
+	text.blink_timer = BlinkTimer.new(60, 10)
+	text.color = color or 22
+	function text:update(dt)
+		self.x = (self.x + self.dx * dt)
+		self.y = (self.y + self.dy * dt)
+		self.blink_timer:update(dt)
+	end
+	function text:draw(dt)
+		if type(self.color) == "table" then
+			set_draw_color(blink(self.color, self.blink_timer))
+		else
+			set_draw_color(self.color)
+		end
+		love.graphics.draw(self.obj, math.floor(self.x), math.floor(self.y))
+	end
+	return text
+end
+
+
+
 function create_particle_points(x, y, dx, dy, points, apply, color)
 	local myp = Particle.new(x, y, dx, dy)
 	myp.lifetime = 3
@@ -1065,7 +1142,7 @@ function create_particle_points(x, y, dx, dy, points, apply, color)
 	myp.blink_timer = BlinkTimer.new(myp.lifetime, 10)
 	myp.id = "effect_message"
 	myp.dead = false
-	myp.color = color or 22
+	myp.color = color or {21, 22, 23, 20, 10, 11, 22}
 	myp.seed = math.random() * 0.5
 	function myp:update(dt)
 		self.x = (self.x + self.dx * dt)
@@ -1090,8 +1167,6 @@ function create_particle_points(x, y, dx, dy, points, apply, color)
 	end
 	score = score + myp.points
 	return myp
-	
-	
 end
 
 function create_particle_message(x, y, dx, dy, text, lifetime, color)
@@ -1121,7 +1196,7 @@ function create_particle_message(x, y, dx, dy, text, lifetime, color)
 	end
 	function myp:draw()
 		if type(self.color) == "table" then
-			set_draw_color(blink(self.color), self.blink_timer)
+			set_draw_color(blink(self.color, self.blink_timer))
 		else
 			set_draw_color(self.color)
 		end
@@ -1463,14 +1538,14 @@ function death_effect_points(entity, only_on_master, apply)
 		local pointX = obj.x + obj.hitw/2
 		local pointY = obj.y + obj.hith/2
 		local points = entity.points
-		local particle = create_particle_points(pointX, pointY, obj.dx / 2.5 + math.random(-50, 50), obj.dy / 5 + math.random(-50, 50), points, apply, {21, 22, 23, 20, 10, 11, 22})
+		local particle = create_particle_points(pointX, pointY, obj.dx / 2.5 + math.random(-50, 50), obj.dy / 5 + math.random(-50, 50), points, apply)
 		table.insert(particles, particle)
 	else
 		for _, obj in ipairs(entity.data) do
 			local pointX = obj.x + obj.hitw/2
 			local pointY = obj.y + obj.hith/2
 			local points = entity.points
-			local particle = create_particle_points(pointX, pointY, obj.dx / 2.5 + math.random(-50, 50), obj.dy / 5 + math.random(-50, 50), points, apply, {21, 22, 23, 20, 10, 11, 22})
+			local particle = create_particle_points(pointX, pointY, obj.dx / 2.5 + math.random(-50, 50), obj.dy / 5 + math.random(-50, 50), points, apply)
 			table.insert(particles, particle)
 		end
 	end
@@ -1493,7 +1568,6 @@ function single_water_shot(x, y, dx, dy, friendly)
 	sound:play()
 	
 	table.insert(bullets, water)
-	
 end
 
 function double_water_shot(x, y, dx, dy, friendly)
@@ -1557,6 +1631,7 @@ end
 -- load functions
 
 function love.load()
+	timer_global = 1
 	love.window.setTitle("CARMINE'S RETRIBUTION")
 	love.window.setIcon(love.image.newImageData("sprites/player/carmine/carmine_icon.png"))
 	load_startscreen()
@@ -1564,7 +1639,7 @@ function love.load()
 
 	-- timers
 	-- - make sure to set timer to nill after using
-	timer_global = 1
+	
 	timer_levelselect_delay = nil
 
 	timer_menu_delay = nil
@@ -2118,11 +2193,39 @@ end
 
 -- startscreen
 function load_start()
-
+	local x, y = 0
+	local color = {6, 7, 8, 9, 10, 9, 8, 7, 6}
+	local title = create_text(420, 240, 0, 0, "CARMINE'S RETRIBUTION!", color, true)
+	local message = create_text(420, 260, 0, 0, "PRESS SPACE TO PLAY", color, true)
+	print(message.obj:getWidth())
+	x, y = get_obj_offset(message, 8, 0)
+	local rock = create_enemy_rock(x, y, 0, 0)
+	start_assets = {
+		title,
+		message,
+		rock,
+	}
 end
 
+function update_start(dt)
+	for _, obj in ipairs(start_assets) do
+		obj:update(dt)
+	end
+	if love.keyboard.isDown('space') and not key_space_pressed then
+		switch_mode('game')
+		key_space_pressed = true
+		if not timer_levelselect_delay then
+			timer_levelselect_delay = timer_global
+		end
+	end
+end
 
-
+function draw_start()
+	for _, obj in ipairs(start_assets) do
+		obj:draw()
+		set_draw_color(22)
+	end
+end
 
 
 
@@ -2267,13 +2370,13 @@ function center_text(text)
 	return x
 end
 
-function draw_start()
-	set_draw_color(blink({21, 22, 22, 22, 23, 24}, timer_blink))
-	local text1 = "CARMINE'S RETRIBUTION"
-	local text2 = "PRESS ANY KEY TO START"
-	love.graphics.print(text1, center_text(text1), (game_height / 2) - 60)
-	love.graphics.print(text2, center_text(text2), (game_height / 2 ) - 40)
-end
+-- function draw_start()
+-- 	set_draw_color(blink({21, 22, 22, 22, 23, 24}, timer_blink))
+-- 	local text1 = "CARMINE'S RETRIBUTION"
+-- 	local text2 = "PRESS ANY KEY TO START"
+-- 	love.graphics.print(text1, center_text(text1), (game_height / 2) - 60)
+-- 	love.graphics.print(text2, center_text(text2), (game_height / 2 ) - 40)
+-- end
 
 
 
@@ -2283,6 +2386,7 @@ function switch_mode(m)
 		reset_game()
 	elseif m == 'start' then
 		clear_all()
+		load_start()
 	elseif m == 'gameover' then
 
 	elseif m == 'results' then
